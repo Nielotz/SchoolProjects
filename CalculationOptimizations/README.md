@@ -30,8 +30,6 @@ Test skipped due to exceeded time will be printed as 999 and will not be saved t
 ## How to run.
 Tests require linux (for time counting).<br>
 To run add priviledge to run:<br>
-
-chmod +x make_c_and_run.sh
-
-then start
-./[make_c_and_run.sh](make_c_and_run.sh)
+chmod +x make_c_and_run.sh<br><br>
+then start:<br><br>
+./[make_c_and_run.sh](make_c_and_run.sh)<br>
