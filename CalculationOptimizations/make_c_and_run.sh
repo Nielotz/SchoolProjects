@@ -1,0 +1,1 @@
+gcc -c eval_time.c -O3 && gcc -O3 -c main.c -march=native -mfma && gcc eval_time.o main.o -o run -lm && rm *.o && ./run "$@"
