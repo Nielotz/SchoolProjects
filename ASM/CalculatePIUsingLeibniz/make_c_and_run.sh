@@ -1,0 +1,1 @@
+as ak.s -o ak.o && gcc -c eval_time.c -O3 && gcc -c main.c -O1  && gcc eval_time.o main.o ak.o -o run -no-pie && rm *.o && ./run "$@"
