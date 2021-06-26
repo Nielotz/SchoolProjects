@@ -15,8 +15,6 @@ Difference from math.PI: 0.000999000749749935417973190077
 ## How to run.
 On linux:
 Add priviledge to run:<br>
-
-chmod +x make_c_and_run.sh
-
-then start
-./[make_c_and_run.sh](make_c_and_run.sh)
+chmod +x make_c_and_run.sh<br><br>
+then start<br><br>
+./[make_c_and_run.sh](make_c_and_run.sh)<br>
