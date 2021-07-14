@@ -28,7 +28,7 @@ Default time equals 1000, so anything over this time will be registered as 1000.
 Test skipped due to exceeded time will be printed as 999 and will not be saved to the file, but space and | will be added.
 
 ## How to run.
-Tests require linux (for time counting).<br>
+Tests require linux for time receiving lib (time.c / time.h).br>
 To run add priviledge to run:<br>
 chmod +x make_c_and_run.sh<br><br>
 then start:<br><br>
