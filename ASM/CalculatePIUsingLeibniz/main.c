@@ -11,7 +11,7 @@ int main()
         long double result = leibniz((unsigned long long)i) * (long double)4;
         printf("Results for: %llu\n", (unsigned long long)i);
         printf("Result: %1.30Lf\n", result);
-        printf("Difference from math.PI: %1.30Lf\n", result - MY_PI);
+        printf("Difference from PI: %1.30Lf\n", result - MY_PI);
     }
     return 0;
 }
