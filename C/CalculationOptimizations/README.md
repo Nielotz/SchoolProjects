@@ -1,5 +1,5 @@
 # Calculation optimizations.
-Test includes different optimization methods for multiplying matrixes using naive and blocked algorithm.
+Test includes different optimization methods for multiplying matrixes using naive and blocked algorithm.<br>
 Optimizations:
 - SSE, AXV, FMA
 - unroll of the loop (2, 4, 8, 16 and 32 times) for every type algorithm and every optimization.
@@ -28,8 +28,8 @@ Default time equals 1000, so anything over this time will be registered as 1000.
 Test skipped due to exceeded time will be printed as 999 and will not be saved to the file, but space and | will be added.
 
 ## How to run.
-Tests require linux for time receiving lib (time.c / time.h).br>
-To run add priviledge to run:<br>
-chmod +x make_c_and_run.sh<br><br>
-then start:<br><br>
+Tests require linux for time lib ([time.c](time.c), [time.h](time.h)).<br>
+- To run add priviledge to run:<br>
+chmod +x make_c_and_run.sh<br>
+- then start:<br>
 ./[make_c_and_run.sh](make_c_and_run.sh)<br>
