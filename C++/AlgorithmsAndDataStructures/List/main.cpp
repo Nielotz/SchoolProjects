@@ -143,12 +143,29 @@ void read_ranking_from_file(Ranking &ranking) {
 
         while (space_pos != std::string::npos) {
             strings[i] = input_line.substr(last_space_pos, space_pos - last_space_pos);
+            // cout << "\tstrings[" << i << "]: " << strings[i] << endl;
+
             last_space_pos = space_pos + 1;  // Recompense space.
             space_pos = input_line.find(' ', last_space_pos);
 
             i++;
         }
         strings[i] = input_line.substr(last_space_pos, space_pos - last_space_pos);
+        // cout << "\tstrings[" << i << "]: " << strings[i] << endl;
+
+
+        if (i == 6)  // Contain second name.
+            ranking.push_back(
+                    new Ranking::Player(strings[0], strings[1],
+                                        strings[2],
+                                        stoi(strings[3]),
+                                        stoi(strings[4])));
+        else
+            ranking.push_back(
+                    new Ranking::Player(strings[0], "",
+                                        strings[2],
+                                        stoi(strings[3]),
+                                        stoi(strings[4])));
     }
 }
 
@@ -219,7 +236,7 @@ int main() {
 
     /// 1.
     Ranking players_with_minimal_rank;
-    select_players_with_score_above(ranking, players_with_minimal_rank, 2000);
+    select_players_with_score_above(ranking, players_with_minimal_rank, 2700);
     players_with_minimal_rank.print();
 
     /// 2.
