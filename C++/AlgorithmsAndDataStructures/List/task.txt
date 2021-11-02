@@ -1,0 +1,9 @@
+Wczytaj z załączonego pliku dane o 50 najlepszych szachistach według rankingu FIDE i stwórz na ich podstawie listę, opracowując odpowiednią strukturę do przechowywania danych. W przypadku problemów z odczytem danych z pliku dane można minimalnie zmodyfikować. Jeśli nie umiesz wczytać danych – wpisz przykładowe ręcznie (2 pkt)
+
+Napisz następujące funkcje i wywołaj je w main:
+
+1.       Napisz funkcję co tworzy listę szachistów z rankingiem powyżej podanej liczby (2 pkt)
+
+2.       Napisz funkcję co tworzy listę najlepszych graczy każdego z krajów obecnych na wejściowej liście  (3 pkt)
+
+3.       Napisz funkcję co usuwa z listy graczy w wieku powyżej 30 lat (3 pkt)
