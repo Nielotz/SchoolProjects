@@ -1,7 +1,6 @@
 #include <iostream>
-#include <fstream>
 #include <utility>
-#include <string>
+#include <cassert>
 
 using namespace std;
 
@@ -56,7 +55,7 @@ public:
     }
 
     void remove_first() {
-        if (first)
+        if (first == nullptr)
             throw EmptyError("Cannot remove first element from empty list.");
 
         Node *next = first->next;
@@ -85,14 +84,13 @@ public:
     }
 
     Node *pop_front() {
-        if (first)
+        if (first == nullptr)
             throw EmptyError("Cannot pop front from empty list.");
 
         Node *head = first;
         first = first->next;
         return head;
     }
-
 
     ~List() {
         Node *node = first;
@@ -119,7 +117,6 @@ public:
     void push(const int value) {
         list.push_back(value);
     }
-
 };
 
 class Queue {
@@ -131,7 +128,7 @@ public:
     }
 
     Node *pop_front() {
-        return list.remove_first();
+        return list.pop_front();
     }
 
     void push_back(const Node &node) {
@@ -152,20 +149,47 @@ public:
 
 };
 
+void test_list() {
+    // I am lazy :/
+}
 
-int main() {
+void test_queue() {
+    Queue queue;
+
+    queue.push_front(1);
+    assert(queue.pop_front()->value == 1);
+
+    queue.push_back(1);
+    assert(queue.pop_back()->value == 1);
+
+    queue.push_back(2);
+    queue.push_front(1);
+    assert(queue.pop_front()->value == 1);
+    queue.push_front(3);
+    assert(queue.pop_back()->value == 2);
+    assert(queue.pop_back()->value == 3);
+
+}
+
+void test_stack() {
     Stack stack;
     stack.push(1);
     stack.push(2);
     stack.push(3);
-    stack.push(4);
-    stack.push(5);
+    assert(stack.pop()->value == 3);
+    assert(stack.pop()->value == 2);
+    assert(stack.pop()->value == 1);
+}
 
-    while (1) {
-        Node *node = stack.pop();
-        cout << node->value;
-        delete node;
-    }
+void test_all() {
+    test_stack();
+    test_queue();
+    test_list();
+}
+
+
+int main() {
+    test_all();
 
     return 0;
 }
