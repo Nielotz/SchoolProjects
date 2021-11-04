@@ -29,7 +29,6 @@ public:
 class List {
     Node *first = nullptr;
 public:
-
     List() = default;
 
     void push_back(const Node &node) {
@@ -42,7 +41,24 @@ public:
             first = new Node(node);
     }
 
+    void push_back(const int value) {
+        push_back(Node(value));
+    }
+
+    void push_front(const Node &node) {
+        Node *head = first;
+        first = new Node(node);
+        first->next = head;
+    }
+
+    void push_front(const int value) {
+        push_front(Node(value));
+    }
+
     void remove_first() {
+        if (first)
+            throw EmptyError("Cannot remove first element from empty list.");
+
         Node *next = first->next;
         delete first;
         first = next;
@@ -54,7 +70,7 @@ public:
                 Node *second_to_last_node = first;
                 while (second_to_last_node->next->next)
                     second_to_last_node = second_to_last_node->next;
-                
+
                 Node *last = second_to_last_node->next;
                 second_to_last_node->next = nullptr;
                 return last;
@@ -68,6 +84,16 @@ public:
         throw EmptyError("Cannot pop from an empty list.");
     }
 
+    Node *pop_front() {
+        if (first)
+            throw EmptyError("Cannot pop front from empty list.");
+
+        Node *head = first;
+        first = first->next;
+        return head;
+    }
+
+
     ~List() {
         Node *node = first;
         while (node) {
@@ -78,46 +104,6 @@ public:
     }
 };
 
-/*
-void read_ranking_from_file(List &ranking) {
-    ifstream input_data("data.txt");
-
-    for (string input_line; getline(input_data, input_line);) {
-        // cout << "Reading line: " << input_line << endl;
-
-        string strings[6];
-        int i = 0;
-        size_t last_space_pos = 0;
-        size_t space_pos = input_line.find(' ');
-
-        while (space_pos != std::string::npos) {
-            strings[i] = input_line.substr(last_space_pos, space_pos - last_space_pos);
-            // cout << "\tstrings[" << i << "]: " << strings[i] << endl;
-
-            last_space_pos = space_pos + 1;  // Recompense space.
-            space_pos = input_line.find(' ', last_space_pos);
-
-            i++;
-        }
-        strings[i] = input_line.substr(last_space_pos, space_pos - last_space_pos);
-        // cout << "\tstrings[" << i << "]: " << strings[i] << endl;
-
-
-        if (i == 6)  // Contain second name.
-            ranking.push_back(
-                    new List::Node(strings[0], strings[1],
-                                        strings[2],
-                                        stoi(strings[3]),
-                                        stoi(strings[4])));
-        else
-            ranking.push_back(
-                    new List::Node(strings[0], "",
-                                        strings[2],
-                                        stoi(strings[3]),
-                                        stoi(strings[4])));
-    }
-}*/
-
 class Stack {
     List list;
 
@@ -126,15 +112,46 @@ public:
         return list.pop_last();
     }
 
-    void push(Node &node) {
+    void push(const Node &node) {
         list.push_back(node);
     }
 
-    void push(int value) {
-        list.push_back(Node(value));
+    void push(const int value) {
+        list.push_back(value);
     }
 
 };
+
+class Queue {
+    List list;
+
+public:
+    Node *pop_back() {
+        return list.pop_last();
+    }
+
+    Node *pop_front() {
+        return list.remove_first();
+    }
+
+    void push_back(const Node &node) {
+        list.push_back(node);
+    }
+
+    void push_back(const int value) {
+        list.push_back(value);
+    }
+
+    void push_front(const Node &node) {
+        list.push_front(node);
+    }
+
+    void push_front(const int value) {
+        list.push_front(value);
+    }
+
+};
+
 
 int main() {
     Stack stack;
@@ -143,6 +160,7 @@ int main() {
     stack.push(3);
     stack.push(4);
     stack.push(5);
+
     while (1) {
         Node *node = stack.pop();
         cout << node->value;
