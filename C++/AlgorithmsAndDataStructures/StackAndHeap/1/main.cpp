@@ -91,6 +91,10 @@ public:
         push_front(Node(value));
     }
 
+    bool is_empty() {
+        return first_node == nullptr;
+    }
+
     Node *pop_last() {
         if (this->first_node) {  // Check whether list being not empty.
             if (this->first_node->next) {  // Check whether list contains at least 2 elements.
@@ -169,7 +173,6 @@ public:
 
         new_node->next = following_to_inserted;
         previous_to_inserted->next = new_node;
-        int x = 1;
     }
 
     void push_back(const PriorityNode &node) {
@@ -195,6 +198,17 @@ public:
     void push_front(const int value, const size_t priority) {
         push_front(PriorityNode(value, priority));
     }
+
+    bool is_empty() {
+        return first_node == nullptr;
+    }
+
+    PriorityNode copy_head() {
+        if (this->first_node == nullptr)
+            throw EmptyError("Cannot copy front from empty list.");
+
+        return {(*(this->first_node))};
+    };
 
     PriorityNode *pop_last() {
         if (this->first_node) {  // Check whether list being not empty.
@@ -308,6 +322,14 @@ public:
 
     PriorityNode *pop_back() {
         return list.pop_last();
+    }
+
+    PriorityNode copy_head() {
+        return list.copy_head();
+    }
+
+    bool is_empty() {
+        return list.is_empty();
     }
 
     void push(const PriorityNode &node) {
@@ -454,17 +476,19 @@ void test_all() {
 enum class RoadLightsEventType {
     NOTHING,
 
+    NEW_CAR_ON_LANE_0,
     NEW_CAR_ON_LANE_1,
     NEW_CAR_ON_LANE_2,
     NEW_CAR_ON_LANE_3,
-    NEW_CAR_ON_LANE_4,
 
-    NEW_CARRIAGE_ON_LANE_1,
+    CAR_LEAVE_LANE_WITH_GREEN_LIGHT,
 
+    NEW_CARRIAGE_ON_LANE_0,
+
+    SWITCH_GREEN_TO_LANE_0,
     SWITCH_GREEN_TO_LANE_1,
     SWITCH_GREEN_TO_LANE_2,
-    SWITCH_GREEN_TO_LANE_3,
-    SWITCH_GREEN_TO_LANE_4
+    SWITCH_GREEN_TO_LANE_3
 };
 
 class RoadLane : public PriorityQueue {
@@ -476,7 +500,7 @@ class Car : public PriorityNode {
     size_t priority = 1;
 };
 
-class Carraige : public Car {
+class Carriage : public Car {
     int value = 10;
     size_t priority = 0;
 };
@@ -485,22 +509,36 @@ class RoadLights {
     RoadLane lane[4];
 
 public:
-    int lane_with_green = -1;
+    int lane_with_green = 0;
 
     //! Update junction (road lights state).
     //!
     //! During update only one car can go through.
     void update(int pas, int mod) {
         if (mod == 2) {
-            lane[pas - 1].push(0, 1);
+            lane[pas].push(0, 1);
             cout << "New car arrived at lane " << pas << endl;
-        }else if (mod == 3){
+        } else if (mod == 3) {
             cout << "New carriage arrived at lane " << pas << endl;
-            lane[pas - 1].push(10, 0);
-        }
-        else {
-            cout << "Car left the lane " << pas << endl;
-
+            lane[pas].push(10, 0);
+        } else {
+            int lane_with_carriage = 0;
+            while (lane_with_carriage < 4) {
+                if (!lane[lane_with_carriage].is_empty()
+                    && lane[lane_with_carriage].copy_head().priority == 0)  // If carriage.
+                    break;
+                lane_with_carriage++;
+            }
+            if (lane_with_carriage != 4)  // Carriage.
+            {
+                delete lane[lane_with_carriage].pop_front();
+                cout << "Carriage left the " << lane_with_carriage << " lane" << endl;
+            } else {
+                if (!lane[lane_with_green].is_empty()) {
+                    delete lane[lane_with_green].pop_front();
+                    cout << "Car left the " << lane_with_green << " lane" << endl;
+                }
+            }
         }
     }
 
@@ -508,6 +546,9 @@ public:
     virtual bool parse_event(RoadLightsEventType *events, size_t number_of_events) {
         for (size_t i = 0; i < number_of_events; i++) {
             switch (events[i]) {
+                case RoadLightsEventType::NEW_CAR_ON_LANE_0:
+                    this->update(0, 2);
+                    break;
                 case RoadLightsEventType::NEW_CAR_ON_LANE_1:
                     this->update(1, 2);
                     break;
@@ -517,8 +558,9 @@ public:
                 case RoadLightsEventType::NEW_CAR_ON_LANE_3:
                     this->update(3, 2);
                     break;
-                case RoadLightsEventType::NEW_CAR_ON_LANE_4:
-                    this->update(4, 2);
+                case RoadLightsEventType::SWITCH_GREEN_TO_LANE_0:
+                    lane_with_green = 0;
+                    cout << "Now green light is for 0 lane" << endl;
                     break;
                 case RoadLightsEventType::SWITCH_GREEN_TO_LANE_1:
                     lane_with_green = 1;
@@ -532,15 +574,13 @@ public:
                     lane_with_green = 3;
                     cout << "Now green light is for 3 lane" << endl;
                     break;
-                case RoadLightsEventType::SWITCH_GREEN_TO_LANE_4:
-                    lane_with_green = 4;
-                    cout << "Now green light is for 4 lane" << endl;
-                    break;
                 case RoadLightsEventType::NOTHING:
                     break;
-                case RoadLightsEventType::NEW_CARRIAGE_ON_LANE_1:
-                    this->update(1, 3);
+                case RoadLightsEventType::NEW_CARRIAGE_ON_LANE_0:
+                    this->update(0, 3);
                     break;
+                case RoadLightsEventType::CAR_LEAVE_LANE_WITH_GREEN_LIGHT:
+                    this->update(lane_with_green, 1);
             }
         }
         return number_of_events;
@@ -558,56 +598,69 @@ public:
     }
 };
 
-//! Change states.
+//! Change states in a one tick.
 class SimulatedAnimator : Animator {
     constexpr const static size_t NUMBER_OF_SIMULATED_FRAMES = 4;
     int current_state = -1;
     RoadLightsEventType events[NUMBER_OF_SIMULATED_FRAMES][4] = {
             {
-                    RoadLightsEventType::SWITCH_GREEN_TO_LANE_1,
+                    RoadLightsEventType::SWITCH_GREEN_TO_LANE_0,
+                    RoadLightsEventType::CAR_LEAVE_LANE_WITH_GREEN_LIGHT,
+                    RoadLightsEventType::NEW_CAR_ON_LANE_1,
                     RoadLightsEventType::NEW_CAR_ON_LANE_2,
-                    RoadLightsEventType::NEW_CAR_ON_LANE_3,
-                    RoadLightsEventType::NEW_CAR_ON_LANE_4,
+            },
+            {
+                    RoadLightsEventType::SWITCH_GREEN_TO_LANE_1,
+                    RoadLightsEventType::CAR_LEAVE_LANE_WITH_GREEN_LIGHT,
+                    RoadLightsEventType::CAR_LEAVE_LANE_WITH_GREEN_LIGHT,
+                    RoadLightsEventType::CAR_LEAVE_LANE_WITH_GREEN_LIGHT,
             },
             {
                     RoadLightsEventType::SWITCH_GREEN_TO_LANE_2,
-                    RoadLightsEventType::NOTHING,
-                    RoadLightsEventType::NOTHING,
-                    RoadLightsEventType::NOTHING,
+                    RoadLightsEventType::NEW_CAR_ON_LANE_1,
+                    RoadLightsEventType::NEW_CAR_ON_LANE_1,
+                    RoadLightsEventType::NEW_CAR_ON_LANE_1,
             },
             {
-                    RoadLightsEventType::SWITCH_GREEN_TO_LANE_3,
-                    RoadLightsEventType::NEW_CAR_ON_LANE_2,
-                    RoadLightsEventType::NEW_CAR_ON_LANE_2,
-                    RoadLightsEventType::NEW_CAR_ON_LANE_2,
-            },
-            {
-                    RoadLightsEventType::SWITCH_GREEN_TO_LANE_4,
-                    RoadLightsEventType::NEW_CARRIAGE_ON_LANE_1,
-                    RoadLightsEventType::NEW_CARRIAGE_ON_LANE_1,
-                    RoadLightsEventType::NOTHING,
+                    RoadLightsEventType::NEW_CARRIAGE_ON_LANE_0,
+                    RoadLightsEventType::NEW_CARRIAGE_ON_LANE_0,
+                    RoadLightsEventType::CAR_LEAVE_LANE_WITH_GREEN_LIGHT,
+                    RoadLightsEventType::CAR_LEAVE_LANE_WITH_GREEN_LIGHT,
             }
     };
 
 public:
     pair<RoadLightsEventType *, size_t> collect_events() override {
-        if (this->current_state == NUMBER_OF_SIMULATED_FRAMES + 1)
+        if (this->current_state == NUMBER_OF_SIMULATED_FRAMES - 1)
             return {nullptr, 0};
 
         return {events[++this->current_state], 4};
     }
 };
 
-
-int main() {
-    // test_all();
+void simulate() {
     RoadLights road_lights;
     SimulatedAnimator animator;
 
     pair<RoadLightsEventType *, size_t> events;
     do {
+        cout << endl << "Collecting events: " << endl;
         events = animator.collect_events();
 
     } while (road_lights.parse_event(events.first, events.second));
+    cout << "Events ended, quiting.";
+}
 
+int main() {
+    // test_all();
+    // simulate();
+    RoadLights road_lights;
+    road_lights.update(0, 2);  // New car.
+    road_lights.update(1, 2);  // New car.
+    road_lights.update(2, 2);  // New car.
+    road_lights.update(3, 2);  // New car.
+    road_lights.update(3, 1);  // Car out.
+    road_lights.update(3, 3);  // New carriage.
+    road_lights.update(0, 1);  // Carriage out.
+    int x = 0;
 }
