@@ -24,15 +24,14 @@ public:
 
     void add_key(const int key) {
         BinarySearchTreeNode **child = &(this->root);
-        BinarySearchTreeNode *node = *child;
         while (*child != nullptr) {
-            node = *child;
-            if (key >= node->key)
-                child = &(node->right);
+            BinarySearchTreeNode *&parent = *child;
+            if (key >= parent->key)
+                child = &(parent->right);
             else
-                child = &(node->left);
+                child = &(parent->left);
         }
-        *child = new BinarySearchTreeNode(node, key);
+        *child = new BinarySearchTreeNode(*child, key);
     }
 
     /*
