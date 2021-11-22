@@ -33,7 +33,6 @@ public:
                         node = node->right;
                     else {
                         node->right = new BinarySearchTreeNode(node, key);
-                        cout << "Dodano right: " << key << endl;
                         break;
                     }
                 } else {
@@ -41,7 +40,6 @@ public:
                         node = node->left;
                     else {
                         node->left = new BinarySearchTreeNode(node, key);
-                        cout << "Dodano left: " << key << endl;
                         break;
                     }
                 }
@@ -67,24 +65,20 @@ private:
      */
     void _print_node(size_t deep_level, size_t spacing, BinarySearchTreeNode *node) {
         if (node->right != nullptr) {
-            // Go to the right children.
             _print_node(deep_level + 1, spacing, node->right);
             cout << string(deep_level * spacing, ' ') << node->key << endl;
 
-        } else {
-            // Print parent.
+        } else
             cout << string(deep_level * spacing, ' ') << node->key << endl;
-        }
-        if (node->left != nullptr) {
+        if (node->left != nullptr)
             _print_node(deep_level + 1, spacing, node->left);
-        }
     }
 };
 
 int main() {
     BinarySearchTree binary_search_tree;
 
-    for (auto i : {5, 10, 15, 4, 9, 14, 6, 11, 16})
+    for (auto i: {5, 10, 15, 4, 9, 14, 6, 11, 16})
         binary_search_tree.add_key(i);
 
     binary_search_tree.print(2);
