@@ -3,6 +3,11 @@
 
 using namespace std;
 
+class KeyError : public out_of_range {
+public:
+    explicit KeyError(const char *message) : out_of_range(message) {}
+};
+
 class BinarySearchTreeNode {
 public:
     BinarySearchTreeNode *left = nullptr;
@@ -23,15 +28,31 @@ public:
     BinarySearchTree() = default;
 
     void add_key(const int key) {
-        BinarySearchTreeNode **child = &(this->root);
-        while (*child != nullptr) {
-            BinarySearchTreeNode *&parent = *child;
-            if (key >= parent->key)
-                child = &(parent->right);
+        BinarySearchTreeNode **address_of_node = &(this->root);
+        while (*address_of_node != nullptr) {
+            BinarySearchTreeNode *&node = *address_of_node;
+            if (key >= node->key)
+                address_of_node = &(node->right);
             else
-                child = &(parent->left);
+                address_of_node = &(node->left);
         }
-        *child = new BinarySearchTreeNode(*child, key);
+        *address_of_node = new BinarySearchTreeNode(*child, key);
+    }
+
+    void remove_key(const int key) {
+    }
+
+    BinarySearchTreeNode *find_key(const int key){
+        BinarySearchTreeNode *node = this->root;
+        while (node != nullptr) {
+             if (key > node->key)
+                node = node->right;
+             else if (key != node->key)
+                node = node->left;
+             else
+                return node;
+        }
+        throw KeyError("Key has not been found in the tree.");
     }
 
     /*
