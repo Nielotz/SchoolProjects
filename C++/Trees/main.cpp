@@ -23,28 +23,16 @@ public:
     BinarySearchTree() = default;
 
     void add_key(const int key) {
-        if (this->root == nullptr)
-            this->root = new BinarySearchTreeNode(nullptr, key);
-        else {
-            BinarySearchTreeNode *node = this->root;
-            while (true) {
-                if (key >= node->key) {
-                    if (node->right != nullptr)
-                        node = node->right;
-                    else {
-                        node->right = new BinarySearchTreeNode(node, key);
-                        break;
-                    }
-                } else {
-                    if (node->left != nullptr)
-                        node = node->left;
-                    else {
-                        node->left = new BinarySearchTreeNode(node, key);
-                        break;
-                    }
-                }
-            }
+        BinarySearchTreeNode **child = &(this->root);
+        BinarySearchTreeNode *node = *child;
+        while (*child != nullptr) {
+            node = *child;
+            if (key >= node->key)
+                child = &(node->right);
+            else
+                child = &(node->left);
         }
+        *child = new BinarySearchTreeNode(node, key);
     }
 
     /*
@@ -78,7 +66,7 @@ private:
 int main() {
     BinarySearchTree binary_search_tree;
 
-    for (auto i: {5, 10, 15, 4, 9, 14, 6, 11, 16})
+    for (auto i: {5, 10, 15, 4, 9, 14, 6, 11, 17})
         binary_search_tree.add_key(i);
 
     binary_search_tree.print(2);
