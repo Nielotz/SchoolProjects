@@ -39,52 +39,73 @@ public:
                 pointer_to_child = &(parent->left);
         }
         BinarySearchTree::Node *&target_node = *pointer_to_child;
-        if (pointer_to_parent != nullptr)
-        {
+        if (pointer_to_parent != nullptr) {
             BinarySearchTree::Node *&target_parent = *pointer_to_parent;
             target_node = new BinarySearchTree::Node(target_parent, key);
-        }
-        else
+        } else
             target_node = new BinarySearchTree::Node(key);
     }
 
     void remove_key(const int key) {
-        BinarySearchTree::Node *node_to_remove = this->find(key);
-        BinarySearchTree::Node **parent_child_to_remove;
-        if (node_to_remove->parent->key >= key)
-            parent_child_to_remove = &node_to_remove->parent->right;
-        else
-            parent_child_to_remove = &node_to_remove->parent->left;
+        BinarySearchTree::Node **pointer_to_node_pointer_to_remove = this->find(key);
+        BinarySearchTree::Node *& node_pointer_to_remove = *pointer_to_node_pointer_to_remove;
 
-        if (node_to_remove->left == nullptr && node_to_remove->right == nullptr) {
-            delete node_to_remove;
-            *parent_child_to_remove = nullptr;
-        } else if (node_to_remove->left != nullptr || node_to_remove->right != nullptr) {
-            if (node_to_remove->left != nullptr) {
-                node_to_remove->left->parent = *parent_child_to_remove;
-                *parent_child_to_remove = node_to_remove->left;
-                delete node_to_remove;
-            } else {
-                *parent_child_to_remove = node_to_remove->right;
-                delete node_to_remove;
+        BinarySearchTree::Node *&left_child_of_node_to_remove = node_pointer_to_remove->left;
+        BinarySearchTree::Node *&right_child_of_node_to_remove = node_pointer_to_remove->right;
+
+        // When no children.
+        if (left_child_of_node_to_remove == nullptr && right_child_of_node_to_remove == nullptr) {
+            delete node_pointer_to_remove;
+            node_pointer_to_remove = nullptr;
+        }
+        // When two children.
+        else if (left_child_of_node_to_remove != nullptr && right_child_of_node_to_remove != nullptr) {
+            BinarySearchTree::Node **pointer_to_pointer_to_smallest_key_node = find_smallest_key(&node_pointer_to_remove);
+            BinarySearchTree::Node *& smallest_key_node = *pointer_to_pointer_to_smallest_key_node;
+            // What if (*parents_pointer_to_child_to_remove)->parent == nullptr?
+            smallest_key_node->parent = node_pointer_to_remove->parent;
+            smallest_key_node = nullptr;
+        }
+        // When one child.
+        else if (left_child_of_node_to_remove != nullptr || right_child_of_node_to_remove != nullptr) {
+            // When there is a left child.
+            if (left_child_of_node_to_remove != nullptr) {
+                // Swap node parent
+                left_child_of_node_to_remove->parent = node_pointer_to_remove->parent;
+                // Delete node.
+                BinarySearchTree::Node *temp = left_child_of_node_to_remove;
+                delete node_pointer_to_remove;
+                // Swap node child
+                node_pointer_to_remove = temp;
             }
-        } else if (node_to_remove->left != nullptr && node_to_remove->right != nullptr) {
-            BinarySearchTree::Node *smallest_key_node = find_smallest_key(node_to_remove);
-            smallest_key_node->parent = *parent_child_to_remove;
-            *parent_child_to_remove = smallest_key_node;
-            delete node_to_remove;
+            // When right child.
+            else {
+                // Swap node parent
+                right_child_of_node_to_remove->parent = node_pointer_to_remove->parent;
+
+                BinarySearchTree::Node *temp = left_child_of_node_to_remove;
+
+                // Delete node.
+                delete node_pointer_to_remove;
+
+                // Swap node child
+                node_pointer_to_remove = right_child_of_node_to_remove;
+            }
         }
     }
 
-    BinarySearchTree::Node *find(const int key) {
-        BinarySearchTree::Node *node = this->root;
-        while (node != nullptr) {
-            if (key > node->key)
-                node = node->right;
-            else if (key != node->key)
-                node = node->left;
+    BinarySearchTree::Node **find(const int key) {
+        if (this->root == nullptr)
+            throw KeyError("Cannot search in an empty tree.");
+
+        BinarySearchTree::Node **pointer_to_node_pointer = &(this->root);
+        while ((*pointer_to_node_pointer) != nullptr) {
+            if (key > (*pointer_to_node_pointer)->key)
+                pointer_to_node_pointer = &(*pointer_to_node_pointer)->right;
+            else if (key != (*pointer_to_node_pointer)->key)
+                pointer_to_node_pointer = &(*pointer_to_node_pointer)->left;
             else
-                return node;
+                return pointer_to_node_pointer;
         }
         throw KeyError("Key has not been found in the tree.");
     }
@@ -118,11 +139,14 @@ private:
             _print_node(deep_level + 1, spacing, node->left);
     }
 
-    static BinarySearchTree::Node *find_smallest_key(Node *parent) {
-        BinarySearchTree::Node *node = parent;
-        while (node->left != nullptr)
-            node = node->left;
-        return node;
+    //! Find smallest key.
+    //! \param parent pointer to a pointer of node parent
+    //! \return pointer to a pointer of node found node
+    static BinarySearchTree::Node **find_smallest_key(Node **parent) {
+        BinarySearchTree::Node **pointer_of_node = parent;
+        while ((*pointer_of_node)->left != nullptr)
+            (*pointer_of_node) = (*pointer_of_node)->left;
+        return pointer_of_node;
     }
 };
 
@@ -134,7 +158,7 @@ int main() {
         // binary_search_tree.print(2);
     }
 
-    // binary_search_tree.remove_key(4);
+    binary_search_tree.remove_key(15);
     binary_search_tree.print(2);
     cout << endl;
     return 0;
