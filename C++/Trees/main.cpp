@@ -27,30 +27,25 @@ public:
     BinarySearchTree() = default;
 
     void add_key(const int key) {
-        if (this->root == nullptr) {
-            this->root = new BinarySearchTree::Node(key);
-            return;
-        }
-
-        BinarySearchTree::Node **pointer_to_child = nullptr;
-        BinarySearchTree::Node **pointer_to_parent = &(this->root);
-        while (true) {
-            BinarySearchTree::Node *&parent = *pointer_to_parent;
-            if (key >= parent->key) {
-                pointer_to_child = &(parent->right);
-            } else {
-                pointer_to_child = &(parent->left);
-            }
-            BinarySearchTree::Node *&child = *pointer_to_child;
-            if (child == nullptr) {
-                pointer_to_parent = &parent;
-                break;
-            }
+        BinarySearchTree::Node **pointer_to_parent = nullptr;
+        BinarySearchTree::Node **pointer_to_child = &(this->root);
+        while (*pointer_to_child != nullptr) {
             pointer_to_parent = pointer_to_child;
+
+            BinarySearchTree::Node *&parent = *pointer_to_parent;
+            if (key >= parent->key)
+                pointer_to_child = &(parent->right);
+            else
+                pointer_to_child = &(parent->left);
         }
         BinarySearchTree::Node *&target_node = *pointer_to_child;
-        BinarySearchTree::Node *&target_parent = *pointer_to_parent;
-        target_node = new BinarySearchTree::Node(target_parent, key);
+        if (pointer_to_parent != nullptr)
+        {
+            BinarySearchTree::Node *&target_parent = *pointer_to_parent;
+            target_node = new BinarySearchTree::Node(target_parent, key);
+        }
+        else
+            target_node = new BinarySearchTree::Node(key);
     }
 
     void remove_key(const int key) {
