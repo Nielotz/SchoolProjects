@@ -1,4 +1,7 @@
 #include <iostream>
+#include <cassert>
+#include <utility>
+#include <vector>
 
 using namespace std;
 
@@ -32,7 +35,7 @@ public:
     int amount_of_numbers_ = 0;  // Amount of numbers in the array.
     int *numbers_;
 
-    void print()
+    void print() const
     {
         for (int i = 0; i < this->amount_of_numbers_; i++)
             cout << this->numbers_[i] << " ";
@@ -137,45 +140,221 @@ int *sort_ascending_descending(const int *const numbers, const int amount_of_num
 }
 
 
+void print_array(const int *const numbers, const size_t amount_of_numbers)
+{
+    for (int i = 0; i < amount_of_numbers; i++)
+        cout << numbers[i] << " ";
+    cout << endl;
+}
+
+// 2. Find n numbers where max_number - min_number is smallest.
+// Input: amount of numbers, numbers, n ( >= 2)
+void quack_sort(int *numbers, const size_t amount_of_numbers)
+{
+    const int pivot = numbers[amount_of_numbers / 2];
+    int left_number_idx = 0;
+    int right_number_idx = int(amount_of_numbers) - 1;
+
+    while (left_number_idx <= right_number_idx)
+    {
+        // Find number to exchange from the left.
+        while (numbers[left_number_idx] < pivot)
+            left_number_idx++;
+
+        // Find number to exchange from the right.
+        while (numbers[right_number_idx] > pivot)
+            right_number_idx--;
+
+        if (left_number_idx <= right_number_idx)
+        {
+            swap(numbers[left_number_idx], numbers[right_number_idx]);
+            left_number_idx++;
+            right_number_idx--;
+        }
+    }
+    if (0 < right_number_idx)
+        quack_sort(numbers, right_number_idx + 1);
+    if (left_number_idx < amount_of_numbers - 1)
+        quack_sort(numbers + left_number_idx, amount_of_numbers - left_number_idx);
+}
+
+int *find_n_numbers_with_smallest_difference(int *numbers, const size_t amount_of_numbers, const size_t &n)
+{
+    quack_sort(numbers, amount_of_numbers);
+
+    size_t smallest_diff = abs(numbers[0] - numbers[n - 1]);
+    size_t smallest_diff_idx = 0;
+
+    size_t first_element_idx = 1;
+    size_t last_element_idx = n;
+    while (last_element_idx < amount_of_numbers)
+    {
+        size_t current_diff = abs(numbers[first_element_idx] - numbers[last_element_idx]);
+        if (current_diff < smallest_diff)
+        {
+            smallest_diff = current_diff;
+            smallest_diff_idx = first_element_idx;
+        }
+
+        first_element_idx++;
+        last_element_idx++;
+    }
+
+    return numbers + smallest_diff_idx;
+}
+
+class Test
+{
+    struct QuackTestCaseData
+    {
+        vector<int> numbers;
+        vector<int> sorted_numbers;
+
+        QuackTestCaseData(vector<int> numbers, vector<int> sorted_numbers)
+                : numbers(std::move(numbers)), sorted_numbers(std::move(sorted_numbers))
+        {}
+    };
+
+    vector<QuackTestCaseData> quack_sort_tests_case_data = {
+            {{1, 3, 2},             {1, 2, 3}},
+
+            {{1, 2, 3},             {1, 2, 3}},
+            {{1, 2, 3, 4},          {1, 2, 3, 4}},
+            {{1, 2, 3, 4},          {1, 2, 3, 4}},
+            {{1, 2, 3, 4, 5},       {1, 2, 3, 4, 5}},
+
+            {{3, 2, 1},             {1, 2, 3}},
+            {{4, 3, 2, 1},          {1, 2, 3, 4}},
+            {{1, 2, 3, 4},          {1, 2, 3, 4}},
+            {{5, 4, 3, 2, 1},       {1, 2, 3, 4, 5}},
+
+            {{3, 3, 3, 4, 1, 1, 2}, {1, 1, 2, 3, 3, 3, 4}},
+    };
+
+    struct FindNElementsTestCaseData
+    {
+        vector<int> numbers;
+        vector<int> answer;
+        int n;
+
+        FindNElementsTestCaseData(vector<int> numbers, int n, vector<int> answer)
+                : numbers(std::move(numbers)), answer(std::move(answer)), n(n)
+        {}
+    };
+
+    vector<FindNElementsTestCaseData> find_n_elements_tests_case_data = {
+            {{1, 1, 1},          2, {1, 1}},
+            {{1, 1, 1, 1},       2, {1, 1}},
+
+            {{1, 2, 1},          2, {1, 1}},
+            {{1, 2, 1, 3},       2, {1, 1}},
+
+            {{1, 2, 2},          2, {2, 2}},
+            {{1, 2, 2, 2},       2, {2, 2}},
+
+            {{1, 2, 4},          2, {1, 2}},
+            {{1, 2, 4, 6},       2, {1, 2}},
+
+            {{6, 1, 4},          2, {4, 6}},
+            {{6, 1, 4, 9},       2, {4, 6}},
+
+            {{1, 3, 5, 6, 7, 9}, 3, {5, 6, 7}},
+    };
+
+    struct SortAscendingDescendingTestCaseData
+    {
+        vector<int> numbers;
+        vector<int> sorted_numbers;
+
+        SortAscendingDescendingTestCaseData(vector<int> numbers, vector<int> sorted_numbers)
+                : numbers(std::move(numbers)), sorted_numbers(std::move(sorted_numbers))
+        {}
+    };
+
+    vector<SortAscendingDescendingTestCaseData> sort_ascending_descending_tests_case_data = {
+            {{1, 2, 4, 3},    {1, 2, 3, 4}},
+            {{3, 4, 2, 1},    {1, 2, 3, 4}},
+            {{1, 4, 3, 2},    {1, 2, 3, 4}},
+            {{1, 4, 5, 3, 2}, {1, 2, 3, 4, 5}},
+            {{1, 4, 5, 7, 6}, {1, 4, 5, 6, 7}},
+            {{1, 4, 5, 5, 4}, {1, 4, 4, 5, 5}},
+    };
+
+public:
+    void test_quack_sort()
+    {
+        for (auto &test_case_data: quack_sort_tests_case_data)
+        {
+            quack_sort(test_case_data.numbers.data(), test_case_data.numbers.size());
+            for (int i = 0; i < test_case_data.numbers.size(); i++)
+                if (test_case_data.numbers[i] != test_case_data.sorted_numbers[i])
+                {
+                    cout << "Test failed: " << endl;
+                    cout << "\tExpected: ";
+                    print_array(test_case_data.sorted_numbers.data(), test_case_data.sorted_numbers.size());
+
+                    cout << "\tGot: ";
+                    print_array(test_case_data.numbers.data(), test_case_data.numbers.size());
+                    cout << endl;
+                    break;
+                }
+        }
+    }
+
+    void test_find_n_numbers_with_smallest_difference()
+    {
+        for (auto &test_case_data: find_n_elements_tests_case_data)
+        {
+            int *answer = find_n_numbers_with_smallest_difference(test_case_data.numbers.data(),
+                                                                  test_case_data.numbers.size(),
+                                                                  test_case_data.n);
+            for (int i = 0; i < test_case_data.n; i++)
+                if (test_case_data.answer[i] != answer[i])
+                {
+                    cout << "Test ";
+                    print_array(test_case_data.numbers.data(), test_case_data.numbers.size());
+                    cout << " failed: " << endl;
+                    cout << "\tExpected: ";
+                    print_array(test_case_data.answer.data(), test_case_data.answer.size());
+
+                    cout << "\tGot: ";
+                    print_array(answer, test_case_data.n);
+                    cout << endl;
+                    break;
+                }
+        }
+    }
+
+    void test_sort_ascending_descending()
+    {
+        for (auto &test_case_data: sort_ascending_descending_tests_case_data)
+        {
+            int *answer = sort_ascending_descending(test_case_data.numbers.data(),
+                                                    int(test_case_data.numbers.size()));
+            for (int i = 0; i < test_case_data.numbers.size(); i++)
+                if (test_case_data.sorted_numbers[i] != answer[i])
+                {
+                    cout << "Test ";
+                    print_array(test_case_data.numbers.data(), test_case_data.numbers.size());
+                    cout << " failed: " << endl;
+
+                    cout << "\tExpected: ";
+                    print_array(test_case_data.sorted_numbers.data(), test_case_data.sorted_numbers.size());
+
+                    cout << "\tGot: ";
+                    print_array(answer, test_case_data.numbers.size());
+                    cout << endl;
+                    break;
+                }
+        }
+    }
+};
+
 int main()
 {
-    // cout << "numbers[4] = {1, 2, 4, 3};" << endl;
-    int numbers[4] = {1, 2, 4, 3};
-    SortedArray *sorted_numbers = SortedArray::sort_ascending_descending(numbers, 4);
-    sorted_numbers->print();
-    // cout << endl;
-    delete sorted_numbers;
-
-    // cout << "numbers2[4] = {3, 4, 2, 1};" << endl;
-    int numbers2[4] = {3, 4, 2, 1};
-    SortedArray *sorted_numbers2 = SortedArray::sort_ascending_descending(numbers2, 4);
-    sorted_numbers2->print();
-    // cout << endl;
-    delete sorted_numbers2;
-
-    // cout << "numbers3[4] = {1, 4, 3, 2};" << endl;
-    int numbers3[4] = {1, 4, 3, 2};
-    SortedArray *sorted_numbers3 = SortedArray::sort_ascending_descending(numbers3, 4);
-    sorted_numbers3->print();
-    // cout << endl;
-    delete sorted_numbers3;
-
-    // cout << "numbers4[5] = {1, 4, 5, 3, 2" << endl;
-    int numbers4[5] = {1, 4, 5, 3, 2};
-    SortedArray *sorted_numbers4 = SortedArray::sort_ascending_descending(numbers4, 5);
-    sorted_numbers4->print();
-    // cout << endl;
-    delete sorted_numbers4;
-
-    int numbers5[5] = {1, 4, 5, 7, 6};
-    SortedArray *sorted_numbers5 = SortedArray::sort_ascending_descending(numbers5, 5);
-    sorted_numbers5->print();
-    delete sorted_numbers5;
-
-    int numbers6[5] = {1, 4, 5, 5, 4};
-    SortedArray *sorted_numbers6 = SortedArray::sort_ascending_descending(numbers6, 5);
-    sorted_numbers6->print();
-    delete sorted_numbers6;
+    Test().test_quack_sort();
+    Test().test_find_n_numbers_with_smallest_difference();
+    Test().test_sort_ascending_descending();
 
     return 0;
 }
