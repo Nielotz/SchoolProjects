@@ -6,13 +6,11 @@
 #include <vector>
 #include <string>
 #include <unordered_map>
-
-#pragma warning(push, 0)
-#define STB_IMAGE_IMPLEMENTATION
-#include <stb_image.h>
-#pragma warning(pop)
+#include <unordered_set>
+#include <functional>
 
 #include "src/headers/shape/complex.h"
+#include "src/headers/texture.h"
 
 #define ASSERT(x) if(!(x)) __debugbreak();
 
@@ -20,17 +18,6 @@ using std::cout;
 using std::endl;
 using std::string;
 using std::vector;
-
-void printErrorAndQuit(const char* errorMessage)
-{
-	std::cout << errorMessage << std::endl;
-	exit(-1);
-}
-
-void printErrorAndQuit(const string& errorMessage)
-{
-	printErrorAndQuit(errorMessage.c_str());
-}
 
 namespace Shader
 {
@@ -78,7 +65,7 @@ namespace Shader
 	}
 };
 
-namespace Control
+namespace control
 {
 	void scrollCallback(GLFWwindow* window, double xoffset, double yoffset);
 	void keyboardCallback(GLFWwindow* window, int key, int scancode, int action, int mods);
@@ -87,18 +74,25 @@ namespace Control
 class TheProgram
 {
 	const GLchar* kVertexShaderSourceCode = "#version 330 core\n"
-		"layout (location = 0) in vec3 aPos;\n"
+		"layout(location = 0) in vec3 position;\n"
+		"layout(location = 1) in vec3 textureCoordinates;\n"
+		"\n"
 		"void main()\n"
 		"{\n"
-		"   gl_Position = vec4(aPos.x, aPos.y, aPos.z, 1.0);\n"
+		"   gl_Position = vec4(position.x, position.y, position.z, 1.0);\n"
 		"}\0";
 
 	const char* kFragmentShaderSourceCode = "#version 330 core\n"
 		"layout(location = 0) out vec4 color;\n"
-		"uniform vec4 u_ColorRGB;\n"
+		"\n"
+		"uniform vec4 u_colorRGB;\n"
+		"uniform sampler2D u_texture1;\n"
+		"uniform sampler2D u_texture2;\n"
+		"\n"
 		"void main()\n"
 		"{\n"
-		"   color = u_ColorRGB;\n"
+		"   vec4 = texture(u_texture1, texture1Coordinates);\n"
+		"   color = u_colorRGB;\n"
 		"}\n\0";
 
 	unsigned int VBO = 0, VAO = 0;
@@ -108,21 +102,43 @@ class TheProgram
 	vector<shape::complex::ComplexShape*> complexShapes;
 	std::unordered_map<string, shape::complex::ComplexShape*> complexShapesMap;
 
-	Coordinates currentCoordinates;
+	Coordinates coordinatesDataForGPU;
 
 	GLuint shaderProgram = 0;
 
+	// Map key number to callback function.
+	std::unordered_map<int, std::function<void()>> keyboardCallbacks;
+
+	std::unordered_set<GLint> activeComplexShapes;
+
+	// Map ComplexShapeID to textureID.
+	std::unordered_map<GLint, GLint> textures;
+
+	GLint u_colorID = -1;
+	GLint u_texture1ID = -1;
+	GLint u_texture2ID = -1;
+
 	/// @brief See Shape::ComplexShape.convertToCoordinates()
-	Coordinates convertComplexShapesToCoordinates()
+	Coordinates convertVisibleComplexShapesToCoordinates()
 	{
-		// Count total amount of triangles.
-		GLsizei amountOfTriangles = 0;
+		// Collect visible complex shapes.
+		const size_t amountOfComplexShapes = this->complexShapes.size() + this->complexShapesMap.size();
+		vector<const shape::complex::ComplexShape*> visibleComplexShapes;
+		visibleComplexShapes.reserve(amountOfComplexShapes);
 
 		for (const auto& complexShape : this->complexShapes)
-			amountOfTriangles += complexShape->amountOfTriangles;
+			if (complexShape->getVisibility())
+				visibleComplexShapes.emplace_back(complexShape);
 
-		for (const auto& [key, value] : this->complexShapesMap)
-			amountOfTriangles += value->amountOfTriangles;
+		for (const auto& [complexShapeName, complexShape] : this->complexShapesMap)
+			if (complexShape->getVisibility())
+				visibleComplexShapes.emplace_back(complexShape);
+		
+		// Count total amount of visible triangles.
+		GLsizei amountOfTriangles = 0;
+
+		for (const auto& complexShape : visibleComplexShapes)
+			amountOfTriangles += complexShape->amountOfTriangles;
 
 		// Convert amount of triangles to amount of coordinates.
 		const GLsizei amountOfCoordinates = amountOfTriangles * kCoordinatesPerTriangle;
@@ -134,23 +150,17 @@ class TheProgram
 		/// @brief Copy sourceComplexShape coordinates to destination + destinationOffset.
 		/// 
 		/// @return amount of copied coordinates
-		auto copyComplexShapeCoordinates = [](const shape::complex::ComplexShape* const& sourceComplexShape, GLfloat* destination, GLsizei destinationOffset)
+		for (const shape::complex::ComplexShape* complexShape : visibleComplexShapes)
 		{
-			const Coordinates& complexShapeCoordinates = sourceComplexShape->convertToCoordinates();
+			const Coordinates& complexShapeCoordinates = complexShape->convertToCoordinates();
 
 			const GLfloat* complexShapeCoordinatesStart = complexShapeCoordinates.coordinates;
 			const GLfloat* complexShapeCoordinatesEnd = complexShapeCoordinatesStart + complexShapeCoordinates.amountOfCoordinates;
 
-			std::copy(complexShapeCoordinatesStart, complexShapeCoordinatesEnd, destination + destinationOffset);
+			std::copy(complexShapeCoordinatesStart, complexShapeCoordinatesEnd, allCoordinates.coordinates + destinationOffset);
 
-			return complexShapeCoordinates.amountOfCoordinates;
-		};
-
-		for (const shape::complex::ComplexShape* complexShape : this->complexShapes)
-			destinationOffset += copyComplexShapeCoordinates(complexShape, allCoordinates.coordinates, destinationOffset);
-
-		for (const auto& [complexShapeName, complexShape] : this->complexShapesMap)
-			destinationOffset += copyComplexShapeCoordinates(complexShape, allCoordinates.coordinates, destinationOffset);
+			destinationOffset += complexShapeCoordinates.amountOfCoordinates;
+		}
 
 		ASSERT(amountOfCoordinates == destinationOffset);
 
@@ -176,7 +186,7 @@ class TheProgram
 	{
 		this->clearScreen();
 
-		glDrawArrays(GL_TRIANGLES, 0, currentCoordinates.amountOfCoordinates);
+		glDrawArrays(GL_TRIANGLES, 0, coordinatesDataForGPU.amountOfCoordinates);
 
 		glfwSwapBuffers(window);
 	}
@@ -191,8 +201,8 @@ class TheProgram
 	{
 		glfwSetWindowUserPointer(this->window, reinterpret_cast<void*>(this));
 
-		glfwSetScrollCallback(this->window, Control::scrollCallback);
-		glfwSetKeyCallback(this->window, Control::keyboardCallback);
+		glfwSetScrollCallback(this->window, control::scrollCallback);
+		glfwSetKeyCallback(this->window, control::keyboardCallback);
 	}
 
 	void handleEvents()
@@ -201,9 +211,10 @@ class TheProgram
 	}
 
 public:
-	bool isAnyComplexShapeActive = false;
-	GLint activeComplexShapeID = 0;
-	GLint u_activeComplexShapeID = 0;
+	std::unordered_set<GLint> getActiveComplexShapes()
+	{
+		return this->activeComplexShapes;
+	}
 
 	const shape::complex::ComplexShape* getComplexShape(GLint complexShapeID)
 	{
@@ -217,15 +228,13 @@ public:
 		glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
 		glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-		window = glfwCreateWindow(kScreenWidth, kScreenHeight, kWindowName, NULL, NULL);
+		window = glfwCreateWindow(kScreenWidth, kScreenHeight, kWindowName.c_str(), NULL, NULL);
 
-		if (window == NULL)
-			printErrorAndQuit("Failed to create GLFW window");
+		ASSERT(window != NULL);  // Failed to create GLFW window.
 
 		glfwMakeContextCurrent(window);
 
-		if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
-			printErrorAndQuit("Failed to initialize GLAD");
+		ASSERT(gladLoadGLLoader((GLADloadproc)glfwGetProcAddress));  // Failed to initialize GLAD.
 
 		this->compileShaders();
 		glUseProgram(shaderProgram);
@@ -238,40 +247,41 @@ public:
 
 		glEnableVertexAttribArray(0);
 
-		this->u_activeComplexShapeID = glGetUniformLocation(this->shaderProgram, "u_ColorRGB");
+		this->u_colorID = glGetUniformLocation(this->shaderProgram, "u_colorRGB");
+		ASSERT(this->u_colorID != -1);  // Uniform not found.
+		glUniform4f(this->u_colorID, 0.0f, 1.0f, 0.0f, 1.0f);
 
-		if (this->u_activeComplexShapeID == -1)
-			printErrorAndQuit("Uniform not found.");
+		this->u_texture1ID = glGetUniformLocation(this->shaderProgram, "u_texture1");
+		ASSERT(this->u_texture1ID != -1);  // Uniform not found.
+		glUniform1i(this->u_texture1ID, 0);
+
+		this->u_texture2ID = glGetUniformLocation(this->shaderProgram, "u_texture2");
+		ASSERT(this->u_texture2ID != -1);  // Uniform not found.
+		glUniform1i(this->u_texture2ID, 1);
 
 		this->setCallbacks();
 
-		glfwSwapInterval(1);
+		glfwSwapInterval(2);
 	}
 
 	void setComplexShapeActive(GLint shapeID)
 	{
 		ASSERT(shapeID < this->complexShapes.size());
 
-		this->activeComplexShapeID = shapeID;
-		this->isAnyComplexShapeActive = true;
+		this->activeComplexShapes.emplace(shapeID);
 	}
 
 	void update()
 	{
-		delete[] this->currentCoordinates.coordinates;
+		delete[] this->coordinatesDataForGPU.coordinates;
 
-		this->currentCoordinates = this->convertComplexShapesToCoordinates();
+		this->coordinatesDataForGPU = this->convertVisibleComplexShapesToCoordinates();
 
 		glBufferData(GL_ARRAY_BUFFER,
-			sizeof(GLfloat) * this->currentCoordinates.amountOfCoordinates,
-			this->currentCoordinates.coordinates,
+			sizeof(GLfloat) * this->coordinatesDataForGPU.amountOfCoordinates,
+			this->coordinatesDataForGPU.coordinates,
 			GL_STATIC_DRAW
 		);
-
-		const shape::complex::Circle* circle = static_cast<const shape::complex::Circle*>(this->complexShapes[this->activeComplexShapeID]);
-		const color::RGB& color = circle->getColorRGB();
-
-		glUniform4f(this->u_activeComplexShapeID, color.red, color.green, color.blue, 1.0f);
 
 		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(GLfloat), (void*)0);
 	}
@@ -280,15 +290,14 @@ public:
 	/// @param amountOfTriangles 
 	/// @param radius 
 	/// @return id of circle
-	GLint addCircle(const GLsizei amountOfTriangles, const GLfloat radius)
+	GLint addCircle(const GLsizei amountOfTriangles, const GLfloat radius,
+		const shape::primitive::Point& position = { 0,0,0 })
 	{
-		shape::complex::Circle* newCircle = new shape::complex::Circle{ amountOfTriangles, radius };
+		shape::complex::Circle* newCircle = new shape::complex::Circle{ amountOfTriangles, radius, position };
 
 		GLint circleID = static_cast<GLint>(complexShapes.size());
 
 		complexShapes.emplace_back(newCircle);
-
-		//newCircle->printCoordinates();
 
 		return circleID;
 	}
@@ -301,14 +310,10 @@ public:
 		this->complexShapes.erase(this->complexShapes.begin() + shapeID);
 	}
 
-	void updateCircle(GLint circleID, GLsizei amountOfTriangles = 0, GLfloat radius = -1, color::RGB color = { -1 })
+	void updateCircle(GLint circleID, GLsizei amountOfTriangles = 0,
+		GLfloat radius = -1, color::RGB color = { -1 })
 	{
-		if (this->complexShapes.size() <= circleID)
-		{
-			const string errorMessage = "Attempted to update circle with ID: " + std::to_string(circleID)
-				+ " but only " + std::to_string(this->complexShapes.size()) + " exists.";
-			printErrorAndQuit(errorMessage.c_str());
-		}
+		ASSERT(circleID < this->complexShapes.size())
 
 		shape::complex::Circle* circle = static_cast<shape::complex::Circle*>(this->complexShapes[circleID]);
 
@@ -324,19 +329,12 @@ public:
 				circle->updateCircle(amountOfTriangles);
 		}
 
-		//circle->printCoordinates();
-
 		this->update();
 	}
 
 	void updateCircle(GLint circleID, color::RGB color = { -1 })
 	{
 		this->updateCircle(circleID, 0, -1, color);
-	}
-
-	void removeShape()
-	{
-
 	}
 
 	void mainLoop()
@@ -348,6 +346,28 @@ public:
 			this->draw();
 			this->handleEvents();
 		}
+	}
+
+	void toggleShapeVisibility(GLint complexShapeID)
+	{
+		ASSERT(complexShapeID < this->complexShapes.size());
+
+		shape::complex::ComplexShape*& shape = this->complexShapes[complexShapeID];
+		shape->setVisibility(!shape->getVisibility());
+	}
+
+	void toggleShapeVisibilityOnKey(GLint complexShapeID, int key)
+	{
+		std::function<void()> func = [this, complexShapeID] {
+			this->toggleShapeVisibility(complexShapeID);
+		};
+
+		this->keyboardCallbacks[key] = func;
+	}
+
+	auto getKeyboardCallbacks() const
+	{
+		return this->keyboardCallbacks;
 	}
 
 	~TheProgram()
@@ -363,17 +383,17 @@ public:
 	}
 };
 
-namespace Control
+namespace control
 {
 	void scrollCallback(GLFWwindow* window, double xoffset, double yoffset)
 	{
 		TheProgram* program = static_cast<TheProgram*>(glfwGetWindowUserPointer(window));
-		const shape::complex::Circle* circle = static_cast<const shape::complex::Circle*>(program->getComplexShape(program->activeComplexShapeID));
+		//const shape::complex::Circle* circle = static_cast<const shape::complex::Circle*>(program->getComplexShape(program->activeComplexShapes));
 
-		if (yoffset < 0 && circle->amountOfTriangles <= 3)
-			return;
+		//if (yoffset < 0 && circle->amountOfTriangles <= 3)
+		//	return;
 
-		program->updateCircle(program->activeComplexShapeID, circle->amountOfTriangles + int(yoffset));
+		//program->updateCircle(program->activeComplexShapes, circle->amountOfTriangles + int(yoffset));
 
 		program->update();
 	}
@@ -381,28 +401,18 @@ namespace Control
 	void keyboardCallback(GLFWwindow* window, int key, int scancode, int action, int mods)
 	{
 		TheProgram* program = static_cast<TheProgram*>(glfwGetWindowUserPointer(window));
-		// const Shape::Circle* circle = static_cast<const Shape::Circle*>(program->getComplexShape(program->activeComplexShapeID));
+		const auto& keyboardCallbacks = program->getKeyboardCallbacks();
 
-		// Show / hide triangle.
-		if (key == GLFW_KEY_1)
+		if (action == GLFW_PRESS)
 		{
-			//for (auto)
-			//if (program)
-			//program.
-			int x = 2;
+			if (keyboardCallbacks.contains(key))
+			{
+				keyboardCallbacks.find(key)->second();
+				program->update();
+			}
+			else
+				cout << "Detected unhandled keyboard event: " << key << endl;
 		}
-
-		//this->updateCircle(this->activeComplexShapeID, ColorRGB{ 1.f, 0.f, 0.f });
-
-		// else if (glfwGetKey(window, GLFW_KEY_2))
-		//     this->updateCircle(this->activeComplexShapeID, ColorRGB{ 0.f, 1.f, 0.f });
-		// else if (glfwGetKey(window, GLFW_KEY_3))
-		//     this->updateCircle(this->activeComplexShapeID, ColorRGB{ 0.f, 0.f, 1.f });
-
-
-		//program->updateCircle(program->activeComplexShapeID, circle->amountOfTriangles + yoffset);
-
-		program->update();
 	}
 };
 
@@ -411,11 +421,23 @@ int main()
 	TheProgram program;
 	program.init();
 
-	int amountOfTriangles = 20;
-	const GLfloat kRadius = 0.5;
+	GLint squareID = program.addCircle(4, 0.2f, { -0.7f, 0.7f });
+	GLint triangleID = program.addCircle(3, 0.2f, { 0.7f, -0.7f });
 
-	GLint circleID = program.addCircle(amountOfTriangles, kRadius);
-	program.setComplexShapeActive(circleID);
+	constexpr int kKey1 = 49;
+	constexpr int kKey2 = 50;
+
+	program.toggleShapeVisibilityOnKey(squareID, kKey1);
+	program.toggleShapeVisibilityOnKey(triangleID, kKey2);
+
+	program.setComplexShapeActive(squareID);
+	program.setComplexShapeActive(triangleID);
+
+	Texture texture1("res/textures/texture1.jpg");
+	Texture texture2("res/textures/texture2.jpg");
+
+	texture1.bind(0);
+	texture2.bind(1);
 
 	program.mainLoop();
 

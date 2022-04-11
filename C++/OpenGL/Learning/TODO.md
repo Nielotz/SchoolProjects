@@ -4,3 +4,6 @@
 
 # Cleanup
 - Split code into files
+
+# Task
+- Render 1 object per render 
