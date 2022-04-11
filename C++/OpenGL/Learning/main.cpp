@@ -75,7 +75,7 @@ class TheProgram
 {
 	const GLchar* kVertexShaderSourceCode = "#version 330 core\n"
 		"layout(location = 0) in vec3 position;\n"
-		"layout(location = 1) in vec3 textureCoordinates;\n"
+		//"layout(location = 1) in vec3 textureCoordinates;\n"
 		"\n"
 		"void main()\n"
 		"{\n"
@@ -86,12 +86,12 @@ class TheProgram
 		"layout(location = 0) out vec4 color;\n"
 		"\n"
 		"uniform vec4 u_colorRGB;\n"
-		"uniform sampler2D u_texture1;\n"
-		"uniform sampler2D u_texture2;\n"
+		//"uniform sampler2D u_texture1;\n"
+		//"uniform sampler2D u_texture2;\n"
 		"\n"
 		"void main()\n"
 		"{\n"
-		"   vec4 = texture(u_texture1, texture1Coordinates);\n"
+		//"   vec4 = texture(u_texture1, texture1Coordinates);\n"
 		"   color = u_colorRGB;\n"
 		"}\n\0";
 
@@ -251,13 +251,13 @@ public:
 		ASSERT(this->u_colorID != -1);  // Uniform not found.
 		glUniform4f(this->u_colorID, 0.0f, 1.0f, 0.0f, 1.0f);
 
-		this->u_texture1ID = glGetUniformLocation(this->shaderProgram, "u_texture1");
-		ASSERT(this->u_texture1ID != -1);  // Uniform not found.
-		glUniform1i(this->u_texture1ID, 0);
-
-		this->u_texture2ID = glGetUniformLocation(this->shaderProgram, "u_texture2");
-		ASSERT(this->u_texture2ID != -1);  // Uniform not found.
-		glUniform1i(this->u_texture2ID, 1);
+		//this->u_texture1ID = glGetUniformLocation(this->shaderProgram, "u_texture1");
+		//ASSERT(this->u_texture1ID != -1);  // Uniform not found.
+		//glUniform1i(this->u_texture1ID, 0);
+		//
+		//this->u_texture2ID = glGetUniformLocation(this->shaderProgram, "u_texture2");
+		//ASSERT(this->u_texture2ID != -1);  // Uniform not found.
+		//glUniform1i(this->u_texture2ID, 1);
 
 		this->setCallbacks();
 
