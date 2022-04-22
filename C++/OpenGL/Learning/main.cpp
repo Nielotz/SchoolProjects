@@ -1,5 +1,8 @@
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
+#include "src/headers/glm/glm.hpp"
+#include "src/headers/glm/gtc/matrix_transform.hpp"
+#include "src/headers/glm/gtc/type_ptr.hpp"
 
 #include <iostream>
 #include <numbers>
@@ -9,61 +12,17 @@
 #include <unordered_set>
 #include <functional>
 
+#include "src/headers/mygl/debug/debug.h"
 #include "src/headers/shape/complex.h"
-#include "src/headers/texture.h"
+#include "src/headers/mygl/texture.h"
+#include "src/headers/mygl/shader/shader.h"
 
-#define ASSERT(x) if(!(x)) __debugbreak();
 
 using std::cout;
 using std::endl;
 using std::string;
 using std::vector;
 
-namespace Shader
-{
-	GLuint compile(GLenum&& shaderType, const GLchar* sourceCode)
-	{
-		GLuint compiledShaderID = glCreateShader(shaderType);
-		glShaderSource(compiledShaderID, 1, &sourceCode, NULL);
-		glCompileShader(compiledShaderID);
-
-		int success;
-		glGetShaderiv(compiledShaderID, GL_COMPILE_STATUS, &success);
-		if (!success)
-		{
-			char infoLog[512];
-			glGetShaderInfoLog(compiledShaderID, 512, NULL, infoLog);
-			if (shaderType == GL_VERTEX_SHADER)
-				std::cout << "ERROR::SHADER::VERTEX::COMPILATION_FAILED\n" << infoLog << std::endl;
-			else if (shaderType == GL_FRAGMENT_SHADER)
-				std::cout << "ERROR::SHADER::FRAGMENT::GL_FRAGMENT_SHADER::COMPILATION_FAILED\n" << infoLog << std::endl;
-			else
-				std::cout << "ERROR::SHADER::COMPILATION_FAILED\n" << infoLog << std::endl;
-			throw;
-		}
-
-		return compiledShaderID;
-	}
-
-	GLuint createProgram(vector<GLuint> shaders)
-	{
-		GLuint shaderProgram = glCreateProgram();
-
-		for (auto& shader : shaders)
-			glAttachShader(shaderProgram, shader);
-
-		glLinkProgram(shaderProgram);
-
-		int success;
-		glGetProgramiv(shaderProgram, GL_LINK_STATUS, &success);
-		if (!success) {
-			char infoLog[512];
-			glGetProgramInfoLog(shaderProgram, 612, NULL, infoLog);
-			std::cout << "ERROR::SHADER::PROGRAM::LINKING_FAILED\n" << infoLog << std::endl;
-		}
-		return shaderProgram;
-	}
-};
 
 namespace control
 {
@@ -71,30 +30,77 @@ namespace control
 	void keyboardCallback(GLFWwindow* window, int key, int scancode, int action, int mods);
 };
 
+class Transformation
+{
+protected:
+	glm::mat4 model = glm::mat4(1.0f);
+	const float xDistanceToMove = 0.2f;
+
+public:
+	enum class TransformationType
+	{
+		MoveX,
+		Rotate,
+		Scale,
+		All
+	};
+
+	const Transformation::TransformationType getTransportationType()
+	{
+		return TransformationType::MoveX;
+	}
+
+	void update()
+	{}
+
+	const glm::f32* getModel() const
+	{
+		return glm::value_ptr(this->model);
+	}
+private:
+	Transformation::TransformationType transportationType;
+};
+
+class MoveX : public Transformation
+{
+public:
+	Transformation::TransformationType transportationType = Transformation::TransformationType::MoveX;
+	void update()
+	{
+		this->model = glm::translate(glm::mat4(1.0f), glm::vec3(xDistanceToMove * sin(glfwGetTime()), 0.0f, 0.0f));
+	}
+};
+
+class Scale : public Transformation
+{
+public:
+	Transformation::TransformationType transportationType = Transformation::TransformationType::Scale;
+	void update()
+	{
+		this->model = glm::translate(glm::mat4(1.0f), glm::vec3(xDistanceToMove * sin(glfwGetTime()), 0.0f, 0.0f));
+	}
+};
+
+class Rotate : public Transformation
+{
+public:
+	Transformation::TransformationType transportationType = Transformation::TransformationType::Rotate;
+	void update()
+	{
+		this->model = glm::rotate(glm::mat4(1.0f), 
+			glm::radians(float(sin(glfwGetTime()) * 360)),
+			glm::vec3(0.0f, 0.0f, 1.0f));
+	}
+};
+
+class All : public Transformation
+{
+	Transformation::TransformationType transportationType = Transformation::TransformationType::All;
+};
+
+
 class TheProgram
 {
-	const GLchar* kVertexShaderSourceCode = "#version 330 core\n"
-		"layout(location = 0) in vec3 position;\n"
-		//"layout(location = 1) in vec3 textureCoordinates;\n"
-		"\n"
-		"void main()\n"
-		"{\n"
-		"   gl_Position = vec4(position.x, position.y, position.z, 1.0);\n"
-		"}\0";
-
-	const char* kFragmentShaderSourceCode = "#version 330 core\n"
-		"layout(location = 0) out vec4 color;\n"
-		"\n"
-		"uniform vec4 u_colorRGB;\n"
-		//"uniform sampler2D u_texture1;\n"
-		//"uniform sampler2D u_texture2;\n"
-		"\n"
-		"void main()\n"
-		"{\n"
-		//"   vec4 = texture(u_texture1, texture1Coordinates);\n"
-		"   color = u_colorRGB;\n"
-		"}\n\0";
-
 	unsigned int VBO = 0, VAO = 0;
 
 	GLFWwindow* window = nullptr;
@@ -109,14 +115,11 @@ class TheProgram
 	// Map key number to callback function.
 	std::unordered_map<int, std::function<void()>> keyboardCallbacks;
 
-	std::unordered_set<GLint> activeComplexShapes;
+	std::unordered_set<int> activeComplexShapes;
+	std::unordered_map<int, Transformation*> transformationsComplexShapes;
 
 	// Map ComplexShapeID to textureID.
-	std::unordered_map<GLint, GLint> textures;
-
-	GLint u_colorID = -1;
-	GLint u_texture1ID = -1;
-	GLint u_texture2ID = -1;
+	std::unordered_map<int, int> textures;
 
 	/// @brief See Shape::ComplexShape.convertToCoordinates()
 	Coordinates convertVisibleComplexShapesToCoordinates()
@@ -133,19 +136,19 @@ class TheProgram
 		for (const auto& [complexShapeName, complexShape] : this->complexShapesMap)
 			if (complexShape->getVisibility())
 				visibleComplexShapes.emplace_back(complexShape);
-		
+
 		// Count total amount of visible triangles.
-		GLsizei amountOfTriangles = 0;
+		size_t amountOfTriangles = 0;
 
 		for (const auto& complexShape : visibleComplexShapes)
 			amountOfTriangles += complexShape->amountOfTriangles;
 
 		// Convert amount of triangles to amount of coordinates.
-		const GLsizei amountOfCoordinates = amountOfTriangles * kCoordinatesPerTriangle;
+		const size_t amountOfCoordinates = amountOfTriangles * kCoordinatesPerTriangle;
 
 		// Agregate coordinates into allCoordinates.
-		Coordinates allCoordinates = { new GLfloat[amountOfCoordinates] , amountOfCoordinates };
-		GLsizei destinationOffset = 0;
+		Coordinates allCoordinates = { new float[amountOfCoordinates] , amountOfCoordinates };
+		size_t destinationOffset = 0;
 
 		/// @brief Copy sourceComplexShape coordinates to destination + destinationOffset.
 		/// 
@@ -154,8 +157,8 @@ class TheProgram
 		{
 			const Coordinates& complexShapeCoordinates = complexShape->convertToCoordinates();
 
-			const GLfloat* complexShapeCoordinatesStart = complexShapeCoordinates.coordinates;
-			const GLfloat* complexShapeCoordinatesEnd = complexShapeCoordinatesStart + complexShapeCoordinates.amountOfCoordinates;
+			const float* complexShapeCoordinatesStart = complexShapeCoordinates.coordinates;
+			const float* complexShapeCoordinatesEnd = complexShapeCoordinatesStart + complexShapeCoordinates.amountOfCoordinates;
 
 			std::copy(complexShapeCoordinatesStart, complexShapeCoordinatesEnd, allCoordinates.coordinates + destinationOffset);
 
@@ -167,28 +170,28 @@ class TheProgram
 		return allCoordinates;
 	}
 
-	void compileShaders()
-	{
-		cout << "Compiling fragmentShader..." << endl;
-		GLuint fragmentShader = Shader::compile(GL_FRAGMENT_SHADER, kFragmentShaderSourceCode);
-
-		cout << "Compiling vertexShader..." << endl;
-		GLuint vertexShader = Shader::compile(GL_VERTEX_SHADER, kVertexShaderSourceCode);
-
-		cout << "Creating GPU program..." << endl;
-		this->shaderProgram = Shader::createProgram({ fragmentShader , vertexShader });
-
-		glDeleteShader(vertexShader);
-		glDeleteShader(fragmentShader);
-	}
-
 	void draw()
 	{
-		this->clearScreen();
+		for (auto & [complexShape, transformation] : this->transformationsComplexShapes)
+		{
+			this->clearScreen();
 
-		glDrawArrays(GL_TRIANGLES, 0, coordinatesDataForGPU.amountOfCoordinates);
+			if (transformation->getTransportationType() == Transformation::TransformationType::MoveX 
+				|| transformation->getTransportationType() == Transformation::TransformationType::All)
+				static_cast<MoveX*>(transformation)->update();
+			if (transformation->getTransportationType() == Transformation::TransformationType::Rotate
+				|| transformation->getTransportationType() == Transformation::TransformationType::All)
+				static_cast<Rotate*>(transformation)->update();
+			if (transformation->getTransportationType() == Transformation::TransformationType::Scale
+				|| transformation->getTransportationType() == Transformation::TransformationType::All)
+				static_cast<Scale*>(transformation)->update();
 
-		glfwSwapBuffers(window);
+			glUniformMatrix4fv(glGetUniformLocation(this->shaderProgram, "u_model"), 1, GL_FALSE, transformation->getModel());
+
+			glDrawArrays(GL_TRIANGLES, 0, static_cast<GLsizei>(coordinatesDataForGPU.amountOfCoordinates));
+
+			glfwSwapBuffers(window);
+		}
 	}
 
 	void clearScreen()
@@ -210,13 +213,18 @@ class TheProgram
 		glfwPollEvents();
 	}
 
+	void createShaderProgram()
+	{
+		this->shaderProgram = MyGLShader::createProgram();
+	}
+
 public:
-	std::unordered_set<GLint> getActiveComplexShapes()
+	std::unordered_set<int> getActiveComplexShapes()
 	{
 		return this->activeComplexShapes;
 	}
 
-	const shape::complex::ComplexShape* getComplexShape(GLint complexShapeID)
+	const shape::complex::ComplexShape* getComplexShape(int complexShapeID)
 	{
 		return this->complexShapes[complexShapeID];
 	}
@@ -228,7 +236,7 @@ public:
 		glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
 		glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-		window = glfwCreateWindow(kScreenWidth, kScreenHeight, kWindowName.c_str(), NULL, NULL);
+		window = glfwCreateWindow(config::kScreenWidth, config::kScreenHeight, config::kWindowName.c_str(), NULL, NULL);
 
 		ASSERT(window != NULL);  // Failed to create GLFW window.
 
@@ -236,35 +244,30 @@ public:
 
 		ASSERT(gladLoadGLLoader((GLADloadproc)glfwGetProcAddress));  // Failed to initialize GLAD.
 
-		this->compileShaders();
-		glUseProgram(shaderProgram);
+		this->createShaderProgram();
+		myGLCall(glUseProgram(shaderProgram));
 
-		glGenVertexArrays(1, &VAO);
-		glBindVertexArray(VAO);
+		myGLCall(glGenVertexArrays(1, &VAO));
+		myGLCall(glBindVertexArray(VAO));
 
-		glGenBuffers(1, &VBO);
-		glBindBuffer(GL_ARRAY_BUFFER, VBO);
+		myGLCall(glGenBuffers(1, &VBO));
+		myGLCall(glBindBuffer(GL_ARRAY_BUFFER, VBO));
 
-		glEnableVertexAttribArray(0);
+		myGLCall(glEnableVertexAttribArray(0));
 
-		this->u_colorID = glGetUniformLocation(this->shaderProgram, "u_colorRGB");
-		ASSERT(this->u_colorID != -1);  // Uniform not found.
-		glUniform4f(this->u_colorID, 0.0f, 1.0f, 0.0f, 1.0f);
+		myGLCall(auto u_colorID = glGetUniformLocation(this->shaderProgram, "u_colorRGB"));
+		ASSERT(u_colorID != -1);  // Uniform not found.
+		myGLCall(glUniform4f(u_colorID, 0.0f, 1.0f, 0.0f, 1.0f));
 
-		//this->u_texture1ID = glGetUniformLocation(this->shaderProgram, "u_texture1");
-		//ASSERT(this->u_texture1ID != -1);  // Uniform not found.
-		//glUniform1i(this->u_texture1ID, 0);
-		//
-		//this->u_texture2ID = glGetUniformLocation(this->shaderProgram, "u_texture2");
-		//ASSERT(this->u_texture2ID != -1);  // Uniform not found.
-		//glUniform1i(this->u_texture2ID, 1);
+		auto u_model = glGetUniformLocation(this->shaderProgram, "u_model");
+		myGLCall(ASSERT(u_colorID != -1));  // Uniform not found.
 
 		this->setCallbacks();
 
-		glfwSwapInterval(2);
+		myGLCall(glfwSwapInterval(2));
 	}
 
-	void setComplexShapeActive(GLint shapeID)
+	void setComplexShapeActive(int shapeID)
 	{
 		ASSERT(shapeID < this->complexShapes.size());
 
@@ -277,32 +280,32 @@ public:
 
 		this->coordinatesDataForGPU = this->convertVisibleComplexShapesToCoordinates();
 
-		glBufferData(GL_ARRAY_BUFFER,
-			sizeof(GLfloat) * this->coordinatesDataForGPU.amountOfCoordinates,
+		myGLCall(glBufferData(GL_ARRAY_BUFFER,
+			sizeof(float) * this->coordinatesDataForGPU.amountOfCoordinates,
 			this->coordinatesDataForGPU.coordinates,
 			GL_STATIC_DRAW
-		);
+		));
 
-		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(GLfloat), (void*)0);
+		myGLCall(glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0));
 	}
 
 	/// @brief Add a circle to the scene.
 	/// @param amountOfTriangles 
 	/// @param radius 
 	/// @return id of circle
-	GLint addCircle(const GLsizei amountOfTriangles, const GLfloat radius,
+	int addCircle(const size_t amountOfTriangles, const float radius,
 		const shape::primitive::Point& position = { 0,0,0 })
 	{
 		shape::complex::Circle* newCircle = new shape::complex::Circle{ amountOfTriangles, radius, position };
 
-		GLint circleID = static_cast<GLint>(complexShapes.size());
+		int circleID = static_cast<int>(complexShapes.size());
 
 		complexShapes.emplace_back(newCircle);
 
 		return circleID;
 	}
 
-	void deleteComplexShape(GLint shapeID)
+	void deleteComplexShape(int shapeID)
 	{
 		ASSERT(shapeID < this->complexShapes.size());
 
@@ -310,12 +313,12 @@ public:
 		this->complexShapes.erase(this->complexShapes.begin() + shapeID);
 	}
 
-	void updateCircle(GLint circleID, GLsizei amountOfTriangles = 0,
-		GLfloat radius = -1, color::RGB color = { -1 })
+	void updateCircle(int circleID, size_t amountOfTriangles = 0,
+		float radius = -1, color::RGB color = { -1 })
 	{
 		ASSERT(circleID < this->complexShapes.size())
 
-		shape::complex::Circle* circle = static_cast<shape::complex::Circle*>(this->complexShapes[circleID]);
+			shape::complex::Circle* circle = static_cast<shape::complex::Circle*>(this->complexShapes[circleID]);
 
 		if (color.red >= 0)
 			circle->updateCircle(color);
@@ -332,7 +335,7 @@ public:
 		this->update();
 	}
 
-	void updateCircle(GLint circleID, color::RGB color = { -1 })
+	void updateCircle(int circleID, color::RGB color = { -1 })
 	{
 		this->updateCircle(circleID, 0, -1, color);
 	}
@@ -348,7 +351,7 @@ public:
 		}
 	}
 
-	void toggleShapeVisibility(GLint complexShapeID)
+	void toggleShapeVisibility(int complexShapeID)
 	{
 		ASSERT(complexShapeID < this->complexShapes.size());
 
@@ -356,7 +359,7 @@ public:
 		shape->setVisibility(!shape->getVisibility());
 	}
 
-	void toggleShapeVisibilityOnKey(GLint complexShapeID, int key)
+	void toggleShapeVisibilityOnKey(int complexShapeID, int key)
 	{
 		std::function<void()> func = [this, complexShapeID] {
 			this->toggleShapeVisibility(complexShapeID);
@@ -370,16 +373,24 @@ public:
 		return this->keyboardCallbacks;
 	}
 
+	void addTransformation(int complexShapeID, Transformation* transformation)
+	{
+		this->transformationsComplexShapes[complexShapeID] = transformation;
+	}
+
 	~TheProgram()
 	{
 		for (const auto& complexShape : this->complexShapes)
 			delete complexShape;
 
-		glDeleteVertexArrays(1, &VAO);
-		glDeleteBuffers(1, &VBO);
-		glDeleteProgram(shaderProgram);
+		myGLCall(glDeleteVertexArrays(1, &VAO));
+		myGLCall(glDeleteBuffers(1, &VBO));
+		myGLCall(glDeleteProgram(shaderProgram));
 
 		glfwTerminate();
+	
+		for (auto& [complexShape, transformation] : this->transformationsComplexShapes)
+			delete transformation;
 	}
 };
 
@@ -421,23 +432,25 @@ int main()
 	TheProgram program;
 	program.init();
 
-	GLint squareID = program.addCircle(4, 0.2f, { -0.7f, 0.7f });
-	GLint triangleID = program.addCircle(3, 0.2f, { 0.7f, -0.7f });
+	int triangle1ID = program.addCircle(3, 0.2f, { -0.7f, 0.7f });
+	int triangle2ID = program.addCircle(3, 0.2f, { -0.7f, -0.7f });
+	int triangle3ID = program.addCircle(3, 0.2f, { 0.7f, -0.7f });
+	int triangle4ID = program.addCircle(3, 0.2f, { 0.7f, 0.7f });
 
-	constexpr int kKey1 = 49;
-	constexpr int kKey2 = 50;
+	program.updateCircle(triangle1ID, { 1.f, 0.f, 0.f });
+	program.updateCircle(triangle2ID, { 0.f, 1.f, 0.f });
+	program.updateCircle(triangle3ID, { 0.f, 0.f, 1.f });
+	program.updateCircle(triangle4ID, { 1.f, 1.f, 0.f });
 
-	program.toggleShapeVisibilityOnKey(squareID, kKey1);
-	program.toggleShapeVisibilityOnKey(triangleID, kKey2);
+	program.setComplexShapeActive(triangle1ID);
+	program.setComplexShapeActive(triangle2ID);
+	program.setComplexShapeActive(triangle3ID);
+	program.setComplexShapeActive(triangle4ID);
 
-	program.setComplexShapeActive(squareID);
-	program.setComplexShapeActive(triangleID);
-
-	Texture texture1("res/textures/texture1.jpg");
-	Texture texture2("res/textures/texture2.jpg");
-
-	texture1.bind(0);
-	texture2.bind(1);
+	program.addTransformation(triangle1ID, new MoveX);
+	program.addTransformation(triangle2ID, new Rotate);
+	program.addTransformation(triangle3ID, new Scale);
+	program.addTransformation(triangle4ID, new All);
 
 	program.mainLoop();
 

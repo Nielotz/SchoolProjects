@@ -47,19 +47,19 @@ namespace shape::complex
 		//     CORD: X, Y, Z; X, Y, Z; X, Y, Z; X,  Y,  Z;  X,  Y,  Z;  X,  Y,  Z,;
 		//     IDX:  0, 1, 2, 3, 4, 5, 6, 7, 8; 9, 10, 11, 12, 13, 14, 15, 16, 17,;
 
-		const GLsizei amountOfVertices = this->amountOfTriangles * kVerticesPerTriangle;
+		const size_t amountOfVertices = this->amountOfTriangles * kVerticesPerTriangle;
 
-		const GLsizei amountOfCoordinates = amountOfVertices * kCoordinatesPerVertice;
+		const size_t amountOfCoordinates = amountOfVertices * kCoordinatesPerVertice;
 
-		Coordinates coordinates = { new GLfloat[amountOfCoordinates], amountOfCoordinates };
+		Coordinates coordinates = { new float[amountOfCoordinates], amountOfCoordinates };
 
-		for (GLsizei triangleIdx = 0; triangleIdx < this->amountOfTriangles; triangleIdx++)
+		for (size_t triangleIdx = 0; triangleIdx < this->amountOfTriangles; triangleIdx++)
 		{
-			const GLsizei triangleOffset = triangleIdx * kCoordinatesPerTriangle;
-			for (GLsizei triangleVerticeIdx = 0; triangleVerticeIdx < 3; triangleVerticeIdx++)
+			const size_t triangleOffset = triangleIdx * kCoordinatesPerTriangle;
+			for (size_t triangleVerticeIdx = 0; triangleVerticeIdx < 3; triangleVerticeIdx++)
 			{
-				const GLsizei triangleVerticeOffset = triangleVerticeIdx * kCoordinatesPerVertice;
-				const GLsizei totalVerticeOffset = triangleOffset + triangleVerticeOffset;
+				const size_t triangleVerticeOffset = triangleVerticeIdx * kCoordinatesPerVertice;
+				const size_t totalVerticeOffset = triangleOffset + triangleVerticeOffset;
 
 				coordinates.coordinates[totalVerticeOffset] = this->triangles[triangleIdx].vertices[triangleVerticeIdx].x;
 				coordinates.coordinates[totalVerticeOffset + 1] = this->triangles[triangleIdx].vertices[triangleVerticeIdx].y;
@@ -69,7 +69,7 @@ namespace shape::complex
 		return coordinates;
 	}
 
-	GLfloat Circle::getRadius() const
+	float Circle::getRadius() const
 	{
 		return this->radius;
 	}
@@ -86,12 +86,12 @@ namespace shape::complex
 
 		// Adjust for non-square window.
 		// TODO: add proper x and y scaling.
-		GLfloat yScale = GLfloat(kScreenWidth) / GLfloat(kScreenHeight);
+		float yScale = float(config::kScreenWidth) / float(config::kScreenHeight);
 
 		shape::primitive::Point previousEdgePoint = { centerVertice.x + radius , centerVertice.y };
 		for (int trianglesIdx = 0; trianglesIdx < this->amountOfTriangles; trianglesIdx++)
 		{
-			GLfloat currentAngle = GLfloat(2.0 * std::numbers::pi * (trianglesIdx + 1) / this->amountOfTriangles);
+			float currentAngle = float(2.0 * std::numbers::pi * (trianglesIdx + 1) / this->amountOfTriangles);
 
 			this->triangles[trianglesIdx].vertices[0] = centerVertice;
 			this->triangles[trianglesIdx].vertices[1] = previousEdgePoint;
@@ -104,7 +104,7 @@ namespace shape::complex
 		}
 	}
 
-	Circle::Circle(const GLsizei amountOfTriangles, const GLfloat radius, const shape::primitive::Point position)
+	Circle::Circle(const size_t amountOfTriangles, const float radius, const shape::primitive::Point position)
 	{
 		updateCircle(amountOfTriangles, radius, position);
 	}
@@ -115,7 +115,7 @@ namespace shape::complex
 		calculateTriangles();
 	}
 
-	void Circle::updateCircle(const GLsizei amountOfTriangles)
+	void Circle::updateCircle(const size_t amountOfTriangles)
 	{
 		this->amountOfTriangles = amountOfTriangles;
 
@@ -124,13 +124,13 @@ namespace shape::complex
 		calculateTriangles();
 	}
 
-	void Circle::updateCircle(const GLsizei amountOfTriangles, const GLfloat radius)
+	void Circle::updateCircle(const size_t amountOfTriangles, const float radius)
 	{
 		this->radius = radius;
 		updateCircle(amountOfTriangles);
 	}
 
-	void Circle::updateCircle(const GLsizei amountOfTriangles, const GLfloat radius, const shape::primitive::Point& position)
+	void Circle::updateCircle(const size_t amountOfTriangles, const float radius, const shape::primitive::Point& position)
 	{
 		this->radius = radius;
 		this->position = position;

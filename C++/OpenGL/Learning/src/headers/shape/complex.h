@@ -19,7 +19,7 @@ namespace shape::complex
 		bool isVisible = true;
 
 	public:
-		GLsizei amountOfTriangles = 0;
+		size_t amountOfTriangles = 0;
 
 		void setVisibility(const bool isVisible);
 		bool getVisibility();
@@ -29,25 +29,25 @@ namespace shape::complex
 
 	class Circle : public ComplexShape
 	{
-		GLfloat radius;
+		float radius;
 		color::RGB color_rgb;
 
 	public:
-		GLfloat getRadius() const;
+		float getRadius() const;
 		color::RGB getColorRGB() const;
 
 		/// @brief Calculate triangles that build circle.
 		void calculateTriangles();
 
-		Circle(const GLsizei amountOfTriangles, const GLfloat radius, const shape::primitive::Point position = { 0,0,0 });
+		Circle(const size_t amountOfTriangles, const float radius, const shape::primitive::Point position = { 0,0,0 });
 
 		void updateCircle(const shape::primitive::Point& position);
 
-		void updateCircle(const GLsizei amountOfTriangles);
+		void updateCircle(const size_t amountOfTriangles);
 
-		void updateCircle(const GLsizei amountOfTriangles, const GLfloat radius);
+		void updateCircle(const size_t amountOfTriangles, const float radius);
 
-		void updateCircle(const GLsizei amountOfTriangles, const GLfloat radius, const shape::primitive::Point& position);
+		void updateCircle(const size_t amountOfTriangles, const float radius, const shape::primitive::Point& position);
 
 		void updateCircle(color::RGB& color);
 

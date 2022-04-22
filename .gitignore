@@ -7,3 +7,4 @@ cmake-build-debug
 *.filters
 *.user
 x64
+C++/OpenGL/Learning/src/headers/glm/

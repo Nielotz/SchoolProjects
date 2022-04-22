@@ -2,9 +2,9 @@
 
 #include <iostream>
 
-#include "headers/texture.h"
+#include "../headers/mygl/texture.h"
 
-Texture::Texture(const std::string& path)
+MyGLTexture::MyGLTexture(const std::string& path)
 	:path(path)
 {
 	stbi_set_flip_vertically_on_load(true);
@@ -27,23 +27,23 @@ Texture::Texture(const std::string& path)
 		stbi_image_free(imageData);
 }
 
-GLuint Texture::getTextureID() const
+GLuint MyGLTexture::getTextureID() const
 {
 	return this->textureID;
 }
 
-void Texture::bind(size_t slot)
+void MyGLTexture::bind(size_t slot)
 {
 	glActiveTexture(GL_TEXTURE0 + slot);
 	glBindTexture(GL_TEXTURE_2D, this->textureID);
 }
 
-void Texture::unbind()
+void MyGLTexture::unbind()
 {
 	glBindTexture(GL_TEXTURE_2D, 0);
 }
 
-Texture::~Texture()
+MyGLTexture::~MyGLTexture()
 {
 	this->unbind();
 	glDeleteTextures(1, &this->textureID);

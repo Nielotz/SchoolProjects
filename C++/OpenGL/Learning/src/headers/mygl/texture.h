@@ -4,17 +4,17 @@
 
 #include <string>
 
-class Texture
+class MyGLTexture
 {
 	const std::string path;
 	int width = 0;
 	int height = 0;
-	GLuint textureID = -1;
+	unsigned int textureID = -1;
 
 public:
-	GLuint getTextureID() const;
-	Texture(const std::string& path);
+	unsigned int getTextureID() const;
+	MyGLTexture(const std::string& path);
 	void bind(size_t slot);
 	void unbind();
-	~Texture();
+	~MyGLTexture();
 };

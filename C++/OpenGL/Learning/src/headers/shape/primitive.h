@@ -1,14 +1,12 @@
 #pragma once
 
-#include <glad/glad.h>
-
 namespace shape::primitive
 {
 	struct Point
 	{
-		GLfloat x = 0;
-		GLfloat y = 0;
-		GLfloat z = 0;
+		float x = 0;
+		float y = 0;
+		float z = 0;
 	};
 
 	struct Triangle

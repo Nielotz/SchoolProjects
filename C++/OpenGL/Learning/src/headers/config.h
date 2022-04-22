@@ -1,11 +1,15 @@
-#ifndef MY_CONFIG 
-#define MY_CONFIG
 #pragma once
 
 #include <string>
 
-constexpr unsigned int kScreenWidth = 800;
-constexpr unsigned int kScreenHeight = 600;
-const std::string kWindowName = "";
+namespace config
+{
+	constexpr unsigned int kScreenWidth = 800;
+	constexpr unsigned int kScreenHeight = 600;
+	const std::string kWindowName = "";
 
-#endif
+	namespace path
+	{
+		const std::string shaders = "src/mygl/shader/transforming_triangles.shader";
+	}
+}
