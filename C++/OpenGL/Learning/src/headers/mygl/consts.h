@@ -2,7 +2,7 @@
 #include <unordered_map>
 #include <glad/glad.h>
 
-const std::unordered_map<GLenum, const char*> kGLEnumIDToErrorText =
+const std::unordered_map<unsigned long long, const char*> kGLEnumIDToErrorText =
 {
 	{ 0, "GL_FALSE | GL_POINTS | GL_ZERO | GL_NONE | GL_NO_ERROR" },
 	{ 1, "GL_TRUE | GL_LINES | GL_ONE | GL_CONTEXT_FLAG_FORWARD_COMPATIBLE_BIT | GL_MAP_READ_BIT | GL_CONTEXT_CORE_PROFILE_BIT | GL_SYNC_FLUSH_COMMANDS_BIT" },
