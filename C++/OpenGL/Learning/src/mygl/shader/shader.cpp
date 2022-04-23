@@ -6,6 +6,12 @@
 #include "../../../src/headers/mygl/shader/shader.h"
 #include "../../../src/headers/mygl/debug/debug.h"
 #include "../../headers/config.h"
+#include "../../headers/mygl/debug/debug.h"
+
+GLuint MyGLShader::getShaderProgramID()
+{
+	return this->shaderProgramID;
+}
 
 const std::vector<std::string> MyGLShader::ShaderTypeName =
 {
@@ -71,12 +77,13 @@ GLuint MyGLShader::compile(const ShaderType& shaderType, const std::string& sour
 	myGLCall(glShaderSource(compiledShaderID, 1, &c_sourceCode, NULL));
 	myGLCall(glCompileShader(compiledShaderID));
 
-	const std::string &errorMessage = checkShaderStatus(compiledShaderID, GL_COMPILE_STATUS);
+	const std::string& errorMessage = checkShaderStatus(compiledShaderID, GL_COMPILE_STATUS);
 	if (!errorMessage.empty())
 	{
 		std::string shaderName = ShaderTypeName[int(shaderType)];
 		std::transform(shaderName.begin(), shaderName.end(), shaderName.begin(), ::toupper);
-		std::cout << "ERROR::SHADER::" << shaderName << "::COMPILATION_FAILED\n" << errorMessage << std::endl;
+
+		logging::error("Compiling shader program", "ERROR::SHADER::" + shaderName + "::COMPILATION_FAILED\n" + errorMessage);
 
 		throw;
 	}
@@ -109,7 +116,7 @@ std::unordered_map<MyGLShader::ShaderType, std::string> MyGLShader::parseFromFil
 GLuint MyGLShader::createProgram()
 {
 	const std::string& shaderPath = config::path::shaders;
-	std::cout << "Parsing shader file " << shaderPath << "..." << std::endl;
+	logging::info("Creating shader program", "Parsing shader file " + shaderPath + "...");
 	auto parsedShaders = MyGLShader::parseFromFile(shaderPath.c_str());
 
 	if (parsedShaders.contains(ShaderType::None))
@@ -118,23 +125,46 @@ GLuint MyGLShader::createProgram()
 		parsedShaders.erase(ShaderType::None);
 	}
 
-	std::cout << "Creating GPU program..." << std::endl;
-	GLuint shaderProgram = glCreateProgram();
+	logging::info("Creating shader program", "Creating GPU program...");
+	this->shaderProgramID = glCreateProgram();
 	for (const auto& [shaderType, code] : parsedShaders)
 	{
-		std::cout << "Compiling " << MyGLShader::ShaderTypeName[int(shaderType)] << "..." << std::endl;
+		logging::info("Creating shader program", "Compiling " + MyGLShader::ShaderTypeName[int(shaderType)] + "...");
 		GLuint compiledShader = MyGLShader::compile(shaderType, parsedShaders.at(shaderType));
-		myGLCall(glAttachShader(shaderProgram, compiledShader));
+		myGLCall(glAttachShader(this->shaderProgramID, compiledShader));
 		myGLCall(glDeleteShader(compiledShader));
 	}
 
-	myGLCall(glLinkProgram(shaderProgram));
+	myGLCall(glLinkProgram(this->shaderProgramID));
 
-	const std::string& errorMessage = checkProgramStatus(shaderProgram, GL_LINK_STATUS);
+	const std::string& errorMessage = checkProgramStatus(this->shaderProgramID, GL_LINK_STATUS);
 	if (!errorMessage.empty())
 	{
-		std::cout << "ERROR::SHADER::PROGRAM::LINKING_FAILED\nReason: " << errorMessage << std::endl;
+		logging::error("Creating shader program", "ERROR::SHADER::PROGRAM::LINKING_FAILED\nReason: " + errorMessage);
 		throw;
 	}
-	return shaderProgram;
+
+	return this->shaderProgramID;
+}
+
+void MyGLShader::setGLUniform4f(const GLchar* uniformName, GLfloat v0, GLfloat v1, GLfloat v2, GLfloat v3)
+{
+	myGLCall(auto u_colorID = glGetUniformLocation(this->shaderProgramID, uniformName));
+	ASSERT(u_colorID != -1);  // Uniform not found.
+	myGLCall(glUniform4f(u_colorID, v0, v1, v2, v3));
+}
+
+void MyGLShader::setGLlUniformMatrix4fv(const GLchar* uniformName, const GLfloat* value, GLsizei count, GLboolean transpose)
+{
+	myGLCall(auto u_colorID = glGetUniformLocation(this->shaderProgramID, uniformName));
+
+	// Uniform not found.
+	ASSERT(u_colorID != -1);
+
+	myGLCall(glUniformMatrix4fv(u_colorID, count, transpose, value));
+}
+
+MyGLShader::~MyGLShader()
+{
+	myGLCall(glDeleteProgram(this->shaderProgramID));
 }

@@ -1,8 +1,8 @@
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
-#include "src/headers/glm/glm.hpp"
-#include "src/headers/glm/gtc/matrix_transform.hpp"
-#include "src/headers/glm/gtc/type_ptr.hpp"
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
 
 #include <iostream>
 #include <numbers>
@@ -13,16 +13,15 @@
 #include <functional>
 
 #include "src/headers/mygl/debug/debug.h"
-#include "src/headers/shape/complex.h"
 #include "src/headers/mygl/texture.h"
 #include "src/headers/mygl/shader/shader.h"
-
+#include "src/headers/shape/complex.h"
+#include "src/headers/transformation.h"
 
 using std::cout;
 using std::endl;
 using std::string;
 using std::vector;
-
 
 namespace control
 {
@@ -30,96 +29,30 @@ namespace control
 	void keyboardCallback(GLFWwindow* window, int key, int scancode, int action, int mods);
 };
 
-class Transformation
-{
-protected:
-	glm::mat4 model = glm::mat4(1.0f);
-	const float xDistanceToMove = 0.2f;
-
-public:
-	enum class TransformationType
-	{
-		MoveX,
-		Rotate,
-		Scale,
-		All
-	};
-
-	const Transformation::TransformationType getTransportationType()
-	{
-		return TransformationType::MoveX;
-	}
-
-	void update()
-	{}
-
-	const glm::f32* getModel() const
-	{
-		return glm::value_ptr(this->model);
-	}
-private:
-	Transformation::TransformationType transportationType;
-};
-
-class MoveX : public Transformation
-{
-public:
-	Transformation::TransformationType transportationType = Transformation::TransformationType::MoveX;
-	void update()
-	{
-		this->model = glm::translate(glm::mat4(1.0f), glm::vec3(xDistanceToMove * sin(glfwGetTime()), 0.0f, 0.0f));
-	}
-};
-
-class Scale : public Transformation
-{
-public:
-	Transformation::TransformationType transportationType = Transformation::TransformationType::Scale;
-	void update()
-	{
-		this->model = glm::translate(glm::mat4(1.0f), glm::vec3(xDistanceToMove * sin(glfwGetTime()), 0.0f, 0.0f));
-	}
-};
-
-class Rotate : public Transformation
-{
-public:
-	Transformation::TransformationType transportationType = Transformation::TransformationType::Rotate;
-	void update()
-	{
-		this->model = glm::rotate(glm::mat4(1.0f), 
-			glm::radians(float(sin(glfwGetTime()) * 360)),
-			glm::vec3(0.0f, 0.0f, 1.0f));
-	}
-};
-
-class All : public Transformation
-{
-	Transformation::TransformationType transportationType = Transformation::TransformationType::All;
-};
-
-
 class TheProgram
 {
-	unsigned int VBO = 0, VAO = 0;
+	typedef uint16_t ShapeID;
 
 	GLFWwindow* window = nullptr;
 
 	vector<shape::complex::ComplexShape*> complexShapes;
 	std::unordered_map<string, shape::complex::ComplexShape*> complexShapesMap;
-
 	Coordinates coordinatesDataForGPU;
 
-	GLuint shaderProgram = 0;
+	MyGLShader shader;
+
+	//?
+	unsigned int VBO = 0, VAO = 0;
 
 	// Map key number to callback function.
 	std::unordered_map<int, std::function<void()>> keyboardCallbacks;
 
 	std::unordered_set<int> activeComplexShapes;
-	std::unordered_map<int, Transformation*> transformationsComplexShapes;
+	///
 
-	// Map ComplexShapeID to textureID.
-	std::unordered_map<int, int> textures;
+	// Transformations.
+	std::unordered_multimap<ShapeID, transformation3d::Transformer*> complexShapesTransformers;
+	///
 
 	/// @brief See Shape::ComplexShape.convertToCoordinates()
 	Coordinates convertVisibleComplexShapesToCoordinates()
@@ -172,23 +105,16 @@ class TheProgram
 
 	void draw()
 	{
-		for (auto & [complexShape, transformation] : this->transformationsComplexShapes)
+		for (auto& [complexShape, transformer] : this->complexShapesTransformers)
 		{
 			this->clearScreen();
 
-			if (transformation->getTransportationType() == Transformation::TransformationType::MoveX 
-				|| transformation->getTransportationType() == Transformation::TransformationType::All)
-				static_cast<MoveX*>(transformation)->update();
-			if (transformation->getTransportationType() == Transformation::TransformationType::Rotate
-				|| transformation->getTransportationType() == Transformation::TransformationType::All)
-				static_cast<Rotate*>(transformation)->update();
-			if (transformation->getTransportationType() == Transformation::TransformationType::Scale
-				|| transformation->getTransportationType() == Transformation::TransformationType::All)
-				static_cast<Scale*>(transformation)->update();
+			this->shader.setGLlUniformMatrix4fv("u_model", transformer->calculateTransformationMatrix());
 
-			glUniformMatrix4fv(glGetUniformLocation(this->shaderProgram, "u_model"), 1, GL_FALSE, transformation->getModel());
-
-			glDrawArrays(GL_TRIANGLES, 0, static_cast<GLsizei>(coordinatesDataForGPU.amountOfCoordinates));
+			glDrawArrays(GL_TRIANGLES, 
+				0, 
+				static_cast<GLsizei>(coordinatesDataForGPU.amountOfCoordinates)
+			);
 
 			glfwSwapBuffers(window);
 		}
@@ -211,11 +137,6 @@ class TheProgram
 	void handleEvents()
 	{
 		glfwPollEvents();
-	}
-
-	void createShaderProgram()
-	{
-		this->shaderProgram = MyGLShader::createProgram();
 	}
 
 public:
@@ -244,8 +165,8 @@ public:
 
 		ASSERT(gladLoadGLLoader((GLADloadproc)glfwGetProcAddress));  // Failed to initialize GLAD.
 
-		this->createShaderProgram();
-		myGLCall(glUseProgram(shaderProgram));
+		this->shader.createProgram();
+		myGLCall(glUseProgram(this->shader.getShaderProgramID()));
 
 		myGLCall(glGenVertexArrays(1, &VAO));
 		myGLCall(glBindVertexArray(VAO));
@@ -255,14 +176,15 @@ public:
 
 		myGLCall(glEnableVertexAttribArray(0));
 
-		myGLCall(auto u_colorID = glGetUniformLocation(this->shaderProgram, "u_colorRGB"));
+
+		myGLCall(auto u_colorID = glGetUniformLocation(this->shader.getShaderProgramID(), "u_colorRGB"));
 		ASSERT(u_colorID != -1);  // Uniform not found.
 		myGLCall(glUniform4f(u_colorID, 0.0f, 1.0f, 0.0f, 1.0f));
 
-		auto u_model = glGetUniformLocation(this->shaderProgram, "u_model");
+		auto u_model = glGetUniformLocation(this->shader.getShaderProgramID(), "u_model");
 		myGLCall(ASSERT(u_colorID != -1));  // Uniform not found.
 
-		this->setCallbacks();
+		// this->setCallbacks();
 
 		myGLCall(glfwSwapInterval(2));
 	}
@@ -373,10 +295,31 @@ public:
 		return this->keyboardCallbacks;
 	}
 
-	void addTransformation(int complexShapeID, Transformation* transformation)
+	// Transformations.
+	void addTransformation(const ShapeID complexShapeID,
+		const transformation3d::TransformatingType& tansformerType,
+		const Vector transformationVector)
 	{
-		this->transformationsComplexShapes[complexShapeID] = transformation;
+		using namespace transformation3d;
+		Transformer* transformer;
+		switch (tansformerType)
+		{
+		case TransformatingType::ContinousSlide:
+			transformer = new continous::Slider(transformationVector);
+			break;
+		case TransformatingType::ContinousScale:
+			transformer = new continous::Scaler(transformationVector);
+			break;
+		case TransformatingType::ContinousRotate:
+			transformer = new continous::Rotator(transformationVector);
+			break;
+		default:
+			throw;
+		}
+
+		this->complexShapesTransformers.insert({ complexShapeID, transformer });
 	}
+	///
 
 	~TheProgram()
 	{
@@ -385,12 +328,13 @@ public:
 
 		myGLCall(glDeleteVertexArrays(1, &VAO));
 		myGLCall(glDeleteBuffers(1, &VBO));
-		myGLCall(glDeleteProgram(shaderProgram));
 
 		glfwTerminate();
-	
-		for (auto& [complexShape, transformation] : this->transformationsComplexShapes)
+
+		// Transformations.
+		for (auto& [complexShape, transformation] : this->complexShapesTransformers)
 			delete transformation;
+		///
 	}
 };
 
@@ -432,10 +376,10 @@ int main()
 	TheProgram program;
 	program.init();
 
-	int triangle1ID = program.addCircle(3, 0.2f, { -0.7f, 0.7f });
-	int triangle2ID = program.addCircle(3, 0.2f, { -0.7f, -0.7f });
-	int triangle3ID = program.addCircle(3, 0.2f, { 0.7f, -0.7f });
-	int triangle4ID = program.addCircle(3, 0.2f, { 0.7f, 0.7f });
+	auto triangle1ID = program.addCircle(3, 0.2f, { -0.7f, 0.7f });
+	auto triangle2ID = program.addCircle(3, 0.2f, { -0.7f, -0.7f });
+	auto triangle3ID = program.addCircle(3, 0.2f, { 0.7f, -0.7f });
+	auto triangle4ID = program.addCircle(3, 0.2f, { 0.7f, 0.7f });
 
 	program.updateCircle(triangle1ID, { 1.f, 0.f, 0.f });
 	program.updateCircle(triangle2ID, { 0.f, 1.f, 0.f });
@@ -447,10 +391,10 @@ int main()
 	program.setComplexShapeActive(triangle3ID);
 	program.setComplexShapeActive(triangle4ID);
 
-	program.addTransformation(triangle1ID, new MoveX);
-	program.addTransformation(triangle2ID, new Rotate);
-	program.addTransformation(triangle3ID, new Scale);
-	program.addTransformation(triangle4ID, new All);
+	program.addTransformation(triangle1ID, transformation3d::TransformatingType::ContinousSlide, { 1.f, 1.f, 1.f });
+	program.addTransformation(triangle1ID, transformation3d::TransformatingType::ContinousSlide, { 0.2f, 0.f, 0.f });
+	program.addTransformation(triangle1ID, transformation3d::TransformatingType::ContinousSlide, { 0.2f, 0.f, 0.f });
+	program.addTransformation(triangle1ID, transformation3d::TransformatingType::ContinousSlide, { 0.2f, 0.f, 0.f });
 
 	program.mainLoop();
 
