@@ -157,14 +157,6 @@ void MyGLShader::setGLUniform4f(const GLchar* uniformName, GLfloat v0, GLfloat v
 void MyGLShader::setGLlUniformMatrix4fv(const GLchar* uniformName, const GLfloat* value, GLsizei count, GLboolean transpose)
 {
 	myGLCall(auto u_colorID = glGetUniformLocation(this->shaderProgramID, uniformName));
-
-	// Uniform not found.
-	ASSERT(u_colorID != -1);
-
+	ASSERT(u_colorID != -1);  // Uniform not found.
 	myGLCall(glUniformMatrix4fv(u_colorID, count, transpose, value));
-}
-
-MyGLShader::~MyGLShader()
-{
-	myGLCall(glDeleteProgram(this->shaderProgramID));
 }

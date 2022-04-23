@@ -29,5 +29,4 @@ public:
 	GLuint getShaderProgramID();
 	void setGLUniform4f(const GLchar* uniformName, GLfloat v0, GLfloat v1, GLfloat v2, GLfloat v3);
 	void setGLlUniformMatrix4fv(const GLchar* uniformName, const GLfloat* value, GLsizei count = 1, GLboolean transpose = GL_FALSE);
-	~MyGLShader();
 };
