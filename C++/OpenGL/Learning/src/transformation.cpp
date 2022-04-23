@@ -19,12 +19,12 @@ const glm::f32* transformation3d::continous::Slider::calculateTransformationMatr
 	const float sinusOfTime = this->getSinusOfTime();
 	return glm::value_ptr(
 		glm::translate(
-			glm::mat4{ 1.0f },
-			glm::vec3{
+			this->baseOneMatrix,
+			glm::vec3(
 				this->distanceToSlide.x * sinusOfTime,
 				this->distanceToSlide.y * sinusOfTime,
 				this->distanceToSlide.z * sinusOfTime
-			}
+			)
 		)
 	);
 }
