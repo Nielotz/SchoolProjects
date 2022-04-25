@@ -149,14 +149,21 @@ GLuint MyGLShader::createProgram()
 
 void MyGLShader::setGLUniform4f(const GLchar* uniformName, GLfloat v0, GLfloat v1, GLfloat v2, GLfloat v3)
 {
-	myGLCall(auto u_colorID = glGetUniformLocation(this->shaderProgramID, uniformName));
-	ASSERT(u_colorID != -1);  // Uniform not found.
-	myGLCall(glUniform4f(u_colorID, v0, v1, v2, v3));
+	myGLCall(auto u_ID = glGetUniformLocation(this->shaderProgramID, uniformName));
+	ASSERT(u_ID != -1);  // Uniform not found.
+	myGLCall(glUniform4f(u_ID, v0, v1, v2, v3));
 }
 
 void MyGLShader::setGLlUniformMatrix4fv(const GLchar* uniformName, const GLfloat* value, GLsizei count, GLboolean transpose)
 {
-	myGLCall(auto u_colorID = glGetUniformLocation(this->shaderProgramID, uniformName));
-	ASSERT(u_colorID != -1);  // Uniform not found.
-	myGLCall(glUniformMatrix4fv(u_colorID, count, transpose, value));
+	myGLCall(auto u_ID = glGetUniformLocation(this->shaderProgramID, uniformName));
+	ASSERT(u_ID != -1);  // Uniform not found.
+	myGLCall(glUniformMatrix4fv(u_ID, count, transpose, value));
+}
+
+void MyGLShader::setGLlUniform1i(const GLchar* uniformName, const GLint value)
+{
+	myGLCall(auto u_ID = glGetUniformLocation(this->shaderProgramID, uniformName));
+	ASSERT(u_ID != -1);  // Uniform not found.
+	myGLCall(glUniform1i(u_ID, value));
 }
