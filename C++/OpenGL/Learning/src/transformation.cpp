@@ -5,6 +5,24 @@
 
 #include "headers/transformation.h"
 
+transformation3d::Slider::Slider(const Vector distanceToSlide)
+	:distanceToSlide(distanceToSlide)
+{
+	this->precalculatedMatrix = glm::translate(
+		this->baseOneMatrix,
+		glm::vec3(
+			this->distanceToSlide.x,
+			this->distanceToSlide.y,
+			this->distanceToSlide.z
+		)
+	);
+}
+
+const glm::f32* transformation3d::Slider::calculateTransformationMatrix() const
+{
+	return glm::value_ptr(this->precalculatedMatrix);
+}
+
 inline float transformation3d::continous::Transformer::getSinusOfTime() const
 {
 	return sinf(float(glfwGetTime()));
