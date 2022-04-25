@@ -13,6 +13,7 @@ namespace transformation3d
 {
 	enum class TransformatingType
 	{
+		Slide,
 		ContinousSlide,
 		ContinousRotate,
 		ContinousScale
@@ -27,6 +28,16 @@ namespace transformation3d
 		const glm::mat4& baseOneMatrix = glm::mat4{ 1.0f };
 
 		Transformer() = default;
+	};
+
+	class Slider : public Transformer
+	{
+	private:
+		const Vector distanceToSlide;
+		glm::mat4 precalculatedMatrix;
+	public:
+		Slider(const Vector distanceToSlide);
+		const glm::f32* calculateTransformationMatrix() const override;
 	};
 
 	namespace continous
@@ -53,7 +64,6 @@ namespace transformation3d
 		public:
 			Scaler(const Vector scale);
 			const glm::f32* calculateTransformationMatrix() const override;
-
 		};
 
 		class Rotator : public Transformer
@@ -64,7 +74,6 @@ namespace transformation3d
 		public:
 			Rotator(const Vector rotationVector);
 			const glm::f32* calculateTransformationMatrix() const override;
-
 		};
 	}
 };

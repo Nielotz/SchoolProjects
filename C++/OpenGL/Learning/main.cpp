@@ -23,11 +23,13 @@ using std::endl;
 using std::string;
 using std::vector;
 
+/*
 namespace control
 {
 	void scrollCallback(GLFWwindow* window, double xoffset, double yoffset);
 	void keyboardCallback(GLFWwindow* window, int key, int scancode, int action, int mods);
 };
+*/
 
 class TheProgram
 {
@@ -35,9 +37,9 @@ class TheProgram
 
 	GLFWwindow* window = nullptr;
 
-	vector<shape::complex::ComplexShape*> complexShapes;
-	std::unordered_map<string, shape::complex::ComplexShape*> complexShapesMap;
-	Coordinates coordinatesDataForGPU;
+	std::unordered_map<ShapeID, std::shared_ptr<complex2d::shape::ComplexShape>> complexShapes;
+	// std::unordered_map<string, shape::complex::ComplexShape*> complexShapesMap;
+	// Vertices coordinatesDataForGPU;
 
 	MyGLShader shader;
 
@@ -45,17 +47,18 @@ class TheProgram
 	unsigned int VBO = 0, VAO = 0;
 
 	// Map key number to callback function.
-	std::unordered_map<int, std::function<void()>> keyboardCallbacks;
+	// std::unordered_map<int, std::function<void()>> keyboardCallbacks;
 
-	std::unordered_set<int> activeComplexShapes;
+	// std::unordered_set<int> activeComplexShapes;
 	///
 
 	// Transformations.
-	std::unordered_multimap<ShapeID, transformation3d::Transformer*> complexShapesTransformers;
+	std::unordered_map<ShapeID, vector<transformation3d::Transformer*>> complexShapesTransformers;
 	///
 
-	/// @brief See Shape::ComplexShape.convertToCoordinates()
-	Coordinates convertVisibleComplexShapesToCoordinates()
+	/*
+	/// @brief See Shape::ComplexShape.convertToVertices()
+	Vertices convertVisibleComplexShapesToCoordinates()
 	{
 		// Collect visible complex shapes.
 		const size_t amountOfComplexShapes = this->complexShapes.size() + this->complexShapesMap.size();
@@ -63,11 +66,11 @@ class TheProgram
 		visibleComplexShapes.reserve(amountOfComplexShapes);
 
 		for (const auto& complexShape : this->complexShapes)
-			if (complexShape->getVisibility())
+			if (complexShape->isVisible())
 				visibleComplexShapes.emplace_back(complexShape);
 
 		for (const auto& [complexShapeName, complexShape] : this->complexShapesMap)
-			if (complexShape->getVisibility())
+			if (complexShape->isVisible())
 				visibleComplexShapes.emplace_back(complexShape);
 
 		// Count total amount of visible triangles.
@@ -76,48 +79,121 @@ class TheProgram
 		for (const auto& complexShape : visibleComplexShapes)
 			amountOfTriangles += complexShape->amountOfTriangles;
 
-		// Convert amount of triangles to amount of coordinates.
-		const size_t amountOfCoordinates = amountOfTriangles * kCoordinatesPerTriangle;
+		// Convert amount of triangles to amount of vertices.
+		const size_t amountOfVertices = amountOfTriangles * kCoordinatesPerTriangle;
 
-		// Agregate coordinates into allCoordinates.
-		Coordinates allCoordinates = { new float[amountOfCoordinates] , amountOfCoordinates };
+		// Agregate vertices into allCoordinates.
+		Vertices allCoordinates = { new float[amountOfVertices] , amountOfVertices };
 		size_t destinationOffset = 0;
 
-		/// @brief Copy sourceComplexShape coordinates to destination + destinationOffset.
-		/// 
-		/// @return amount of copied coordinates
+		/// @brief Copy sourceComplexShape vertices to destination + destinationOffset.
+		///
+		/// @return amount of copied vertices
 		for (const shape::complex::ComplexShape* complexShape : visibleComplexShapes)
 		{
-			const Coordinates& complexShapeCoordinates = complexShape->convertToCoordinates();
+			const Vertices& complexShapeCoordinates = complexShape->convertToVertices();
 
-			const float* complexShapeCoordinatesStart = complexShapeCoordinates.coordinates;
-			const float* complexShapeCoordinatesEnd = complexShapeCoordinatesStart + complexShapeCoordinates.amountOfCoordinates;
+			const float* complexShapeCoordinatesStart = complexShapeCoordinates.vertices;
+			const float* complexShapeCoordinatesEnd = complexShapeCoordinatesStart + complexShapeCoordinates.amountOfVertices;
 
-			std::copy(complexShapeCoordinatesStart, complexShapeCoordinatesEnd, allCoordinates.coordinates + destinationOffset);
+			std::copy(complexShapeCoordinatesStart, complexShapeCoordinatesEnd, allCoordinates.vertices + destinationOffset);
 
-			destinationOffset += complexShapeCoordinates.amountOfCoordinates;
+			destinationOffset += complexShapeCoordinates.amountOfVertices;
 		}
 
-		ASSERT(amountOfCoordinates == destinationOffset);
+		ASSERT(amountOfVertices == destinationOffset);
 
 		return allCoordinates;
 	}
+	*/
 
+	glm::f32* transformersMatrixes;
 	void draw()
 	{
-		for (auto& [complexShape, transformer] : this->complexShapesTransformers)
+		struct ShapeToDraw
 		{
-			this->clearScreen();
+			ShapeID shapeID;
+			std::shared_ptr<complex2d::shape::ComplexShape> complexShape;
+			std::shared_ptr<primitive2d::Vertices> vertices;
+		};
 
-			this->shader.setGLlUniformMatrix4fv("u_model", transformer->calculateTransformationMatrix());
+		this->clearScreen();
 
-			glDrawArrays(GL_TRIANGLES, 
-				0, 
-				static_cast<GLsizei>(coordinatesDataForGPU.amountOfCoordinates)
-			);
+		vector<ShapeToDraw> shapesToDraw;
 
-			glfwSwapBuffers(window);
+		// TODO [OPTIMIZATION]: Cache amount of visible shapes.
+		shapesToDraw.reserve(this->complexShapes.size());
+
+		size_t totalAmountOfVertices = 0;
+		for (const auto& [complexShapeID, complexShape] : this->complexShapes)
+		{
+			if (complexShape->isVisible())
+			{
+				std::shared_ptr<primitive2d::Vertices> shapeVertices = complexShape->getVertices();
+
+				totalAmountOfVertices += shapeVertices->amount;
+
+				shapesToDraw.emplace_back(ShapeToDraw{ complexShapeID, complexShape, shapeVertices });
+			}
 		}
+
+		// TODO [PERFORMANCE]: Cache vertices.
+		primitive2d::Vertex* allVertices = new primitive2d::Vertex[totalAmountOfVertices];
+		{
+			size_t offset = 0;
+			for (const auto& [complexShapeID, complexShape, vertices] : shapesToDraw)
+			{
+				std::copy(vertices->vertices, vertices->vertices + vertices->amount, allVertices + offset);
+				offset += vertices->amount;
+			}
+		}
+
+		// TODO [PERFORMANCE]: Move to update.
+		myGLCall(glBufferData(GL_ARRAY_BUFFER,
+			sizeof(primitive2d::Vertex) * totalAmountOfVertices,
+			static_cast<const void*>(allVertices),
+			GL_STATIC_DRAW
+		));
+
+
+		/* Actual drawing. */
+		GLint offset = 0;
+		for (const auto& [complexShapeID, complexShape, vertices] : shapesToDraw)
+		{
+			const auto& colorRGB = complexShape->getColorRGB();
+			const float& alfa = 0.f;
+			this->shader.setGLUniform4f("u_colorRGBA", colorRGB.red, colorRGB.green, colorRGB.blue, alfa);
+
+			if (this->complexShapesTransformers.contains(complexShapeID))
+			{
+				const auto& transformers = this->complexShapesTransformers.at(complexShapeID);
+
+				size_t offset = 0;
+				for (size_t idx = 0; idx < transformers.size(); idx++)
+				{
+					const auto& transformationMatrix = transformers[idx]->calculateTransformationMatrix();
+					std::copy(transformationMatrix, transformationMatrix + sizeof(glm::f32) * 16, transformersMatrixes + offset);
+					offset += 16;
+				}
+
+				ASSERT(transformers.size() <= 4);
+
+				this->shader.setGLlUniformMatrix4fv("u_transformations", transformersMatrixes, (GLsizei)transformers.size());
+				this->shader.setGLlUniform1i("u_transformationsAmount", (const GLint)transformers.size());
+			}
+			else
+				this->shader.setGLlUniform1i("u_transformationsAmount", (const GLint)0);
+
+			myGLCall(glDrawArrays(GL_TRIANGLES,
+				(GLint)offset,  // Offset.
+				static_cast<GLsizei>(vertices->amount)
+			));
+
+			offset += vertices->amount;
+		}
+		delete[] allVertices;
+
+		myGLCall(glfwSwapBuffers(window));
 	}
 
 	void clearScreen()
@@ -126,28 +202,28 @@ class TheProgram
 		glClear(GL_COLOR_BUFFER_BIT);
 	}
 
+	/*
 	void setCallbacks()
 	{
 		glfwSetWindowUserPointer(this->window, reinterpret_cast<void*>(this));
 
 		glfwSetScrollCallback(this->window, control::scrollCallback);
 		glfwSetKeyCallback(this->window, control::keyboardCallback);
-	}
-
+	}*/
 	void handleEvents()
 	{
 		glfwPollEvents();
 	}
 
 public:
-	std::unordered_set<int> getActiveComplexShapes()
+	/*std::unordered_set<int> getActiveComplexShapes()
 	{
 		return this->activeComplexShapes;
-	}
+	}*/
 
-	const shape::complex::ComplexShape* getComplexShape(int complexShapeID)
+	const std::shared_ptr<complex2d::shape::ComplexShape> getComplexShape(int complexShapeID)
 	{
-		return this->complexShapes[complexShapeID];
+		return this->complexShapes.at(complexShapeID);
 	}
 
 	void init()
@@ -176,71 +252,71 @@ public:
 
 		myGLCall(glEnableVertexAttribArray(0));
 
-
-		myGLCall(auto u_colorID = glGetUniformLocation(this->shader.getShaderProgramID(), "u_colorRGB"));
-		ASSERT(u_colorID != -1);  // Uniform not found.
-		myGLCall(glUniform4f(u_colorID, 0.0f, 1.0f, 0.0f, 1.0f));
-
-		auto u_model = glGetUniformLocation(this->shader.getShaderProgramID(), "u_model");
-		myGLCall(ASSERT(u_colorID != -1));  // Uniform not found.
-
 		// this->setCallbacks();
 
 		myGLCall(glfwSwapInterval(2));
-	}
 
+		this->transformersMatrixes = new glm::f32[4 * 16];
+	}
+	/*
 	void setComplexShapeActive(int shapeID)
 	{
 		ASSERT(shapeID < this->complexShapes.size());
 
 		this->activeComplexShapes.emplace(shapeID);
-	}
+	}*/
 
 	void update()
 	{
-		delete[] this->coordinatesDataForGPU.coordinates;
+		//myGLCall(glBufferData(GL_ARRAY_BUFFER,
+		//	sizeof(float) * this->coordinatesDataForGPU.amountOfVertices,
+		//	this->coordinatesDataForGPU.vertices,
+		//	GL_STATIC_DRAW
+		//));
 
-		this->coordinatesDataForGPU = this->convertVisibleComplexShapesToCoordinates();
-
-		myGLCall(glBufferData(GL_ARRAY_BUFFER,
-			sizeof(float) * this->coordinatesDataForGPU.amountOfCoordinates,
-			this->coordinatesDataForGPU.coordinates,
-			GL_STATIC_DRAW
-		));
-
-		myGLCall(glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0));
+		myGLCall(glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), (void*)0));
+		//myGLCall(glVertexAttribPointer(1, 1, GL_INT, GL_FALSE, 4 * sizeof(float), (void*)12));
 	}
 
 	/// @brief Add a circle to the scene.
 	/// @param amountOfTriangles 
 	/// @param radius 
 	/// @return id of circle
-	int addCircle(const size_t amountOfTriangles, const float radius,
-		const shape::primitive::Point& position = { 0,0,0 })
+	int addCircle(const size_t amountOfTriangles, const float radius, const primitive2d::Point& position = { 0,0 })
 	{
-		shape::complex::Circle* newCircle = new shape::complex::Circle{ amountOfTriangles, radius, position };
+		std::shared_ptr<complex2d::shape::Circle> newCircle = std::make_shared<complex2d::shape::Circle>(amountOfTriangles, radius, position);
 
 		int circleID = static_cast<int>(complexShapes.size());
 
-		complexShapes.emplace_back(newCircle);
+		complexShapes[circleID] = newCircle;
 
 		return circleID;
+	}
+
+	int addTriangle(float sideLength, const primitive2d::Point& position, color::RGB color)
+	{
+		std::shared_ptr<complex2d::shape::Triangle> newTriangle = std::make_shared<complex2d::shape::Triangle>(sideLength, position, color);
+
+		int triangleID = static_cast<int>(complexShapes.size());
+
+		complexShapes[triangleID] = newTriangle;
+
+		return triangleID;
 	}
 
 	void deleteComplexShape(int shapeID)
 	{
 		ASSERT(shapeID < this->complexShapes.size());
 
-		delete this->complexShapes[shapeID];
-		this->complexShapes.erase(this->complexShapes.begin() + shapeID);
+		this->complexShapes.erase(shapeID);
 	}
 
 	void updateCircle(int circleID, size_t amountOfTriangles = 0,
 		float radius = -1, color::RGB color = { -1 })
 	{
-		ASSERT(circleID < this->complexShapes.size())
+		ASSERT(circleID < this->complexShapes.size());
 
-			shape::complex::Circle* circle = static_cast<shape::complex::Circle*>(this->complexShapes[circleID]);
+		auto circle = static_cast<complex2d::shape::Circle*>(this->complexShapes[circleID].get());
 
 		if (color.red >= 0)
 			circle->updateCircle(color);
@@ -277,10 +353,11 @@ public:
 	{
 		ASSERT(complexShapeID < this->complexShapes.size());
 
-		shape::complex::ComplexShape*& shape = this->complexShapes[complexShapeID];
-		shape->setVisibility(!shape->getVisibility());
+		std::shared_ptr<complex2d::shape::ComplexShape> shape = this->complexShapes[complexShapeID];
+		shape->setVisibility(!shape->isVisible());
 	}
 
+	/*
 	void toggleShapeVisibilityOnKey(int complexShapeID, int key)
 	{
 		std::function<void()> func = [this, complexShapeID] {
@@ -294,16 +371,22 @@ public:
 	{
 		return this->keyboardCallbacks;
 	}
+	*/
 
 	// Transformations.
-	void addTransformation(const ShapeID complexShapeID,
+	void addTransformation(
+		const ShapeID complexShapeID,
 		const transformation3d::TransformatingType& tansformerType,
 		const Vector transformationVector)
 	{
 		using namespace transformation3d;
+
 		Transformer* transformer;
 		switch (tansformerType)
 		{
+		case TransformatingType::Slide:
+			transformer = new Slider(transformationVector);
+			break;
 		case TransformatingType::ContinousSlide:
 			transformer = new continous::Slider(transformationVector);
 			break;
@@ -317,27 +400,27 @@ public:
 			throw;
 		}
 
-		this->complexShapesTransformers.insert({ complexShapeID, transformer });
+		this->complexShapesTransformers[complexShapeID].push_back(transformer);
 	}
 	///
 
 	~TheProgram()
 	{
-		for (const auto& complexShape : this->complexShapes)
-			delete complexShape;
-
 		myGLCall(glDeleteVertexArrays(1, &VAO));
 		myGLCall(glDeleteBuffers(1, &VBO));
+		myGLCall(glDeleteProgram(this->shader.getShaderProgramID()));
 
 		glfwTerminate();
 
 		// Transformations.
-		for (auto& [complexShape, transformation] : this->complexShapesTransformers)
-			delete transformation;
+		for (auto& [complexShape, vectorOfTransformations] : this->complexShapesTransformers)
+			for (auto& transformation : vectorOfTransformations)
+				delete transformation;
 		///
 	}
 };
 
+/*
 namespace control
 {
 	void scrollCallback(GLFWwindow* window, double xoffset, double yoffset)
@@ -370,31 +453,32 @@ namespace control
 		}
 	}
 };
+*/
 
 int main()
 {
 	TheProgram program;
 	program.init();
 
-	auto triangle1ID = program.addCircle(3, 0.2f, { -0.7f, 0.7f });
-	auto triangle2ID = program.addCircle(3, 0.2f, { -0.7f, -0.7f });
-	auto triangle3ID = program.addCircle(3, 0.2f, { 0.7f, -0.7f });
-	auto triangle4ID = program.addCircle(3, 0.2f, { 0.7f, 0.7f });
+	auto redTriangle = program.addTriangle(0.2f, { -0.1f, 0.1f }, color::kRedRGB);
+	auto greenTriangle = program.addTriangle(0.2f, { -0.1f, 0.1f }, color::kGreenRGB);
+	auto blueTriangle = program.addTriangle(0.2f, { -0.1f, 0.1f }, color::kBlueRGB);
+	auto yellowTriangle = program.addTriangle(0.2f, { -0.1f, 0.1f }, color::kPurpleRGB);
 
-	program.updateCircle(triangle1ID, { 1.f, 0.f, 0.f });
-	program.updateCircle(triangle2ID, { 0.f, 1.f, 0.f });
-	program.updateCircle(triangle3ID, { 0.f, 0.f, 1.f });
-	program.updateCircle(triangle4ID, { 1.f, 1.f, 0.f });
+	program.addTransformation(redTriangle, transformation3d::TransformatingType::Slide, { -0.6f, 0.8f, 0.f });
+	program.addTransformation(redTriangle, transformation3d::TransformatingType::ContinousSlide, { 0.2f, 0.f, 0.f });
 
-	program.setComplexShapeActive(triangle1ID);
-	program.setComplexShapeActive(triangle2ID);
-	program.setComplexShapeActive(triangle3ID);
-	program.setComplexShapeActive(triangle4ID);
+	program.addTransformation(greenTriangle, transformation3d::TransformatingType::Slide, { 0.6f, -0.6f, 0.f });
+	program.addTransformation(greenTriangle, transformation3d::TransformatingType::ContinousRotate, { 0.f, 0.f, 2.f });
 
-	program.addTransformation(triangle1ID, transformation3d::TransformatingType::ContinousSlide, { 1.f, 1.f, 1.f });
-	program.addTransformation(triangle1ID, transformation3d::TransformatingType::ContinousSlide, { 0.2f, 0.f, 0.f });
-	program.addTransformation(triangle1ID, transformation3d::TransformatingType::ContinousSlide, { 0.2f, 0.f, 0.f });
-	program.addTransformation(triangle1ID, transformation3d::TransformatingType::ContinousSlide, { 0.2f, 0.f, 0.f });
+	program.addTransformation(blueTriangle, transformation3d::TransformatingType::Slide, { -0.6f, -0.6f, 0.f });
+	program.addTransformation(blueTriangle, transformation3d::TransformatingType::ContinousScale, { 1.f, 1.f, 1.f });
+
+	program.addTransformation(yellowTriangle, transformation3d::TransformatingType::Slide, { 0.6f, 0.8f, 0.f });
+	program.addTransformation(yellowTriangle, transformation3d::TransformatingType::ContinousSlide, { 0.2f, 0.f, 0.f });
+	program.addTransformation(yellowTriangle, transformation3d::TransformatingType::ContinousRotate, { 0.f, 0.f, 2.f });
+	program.addTransformation(yellowTriangle, transformation3d::TransformatingType::ContinousScale, { 1.f, 1.f, 1.f });
+
 
 	program.mainLoop();
 

@@ -4,53 +4,62 @@
 #include <numbers>
 
 #include "primitive.h"
-#include "../raw/coordinates.h"
 #include "../consts.h"
 #include "../config.h"
 #include "../color.h"
 
-namespace shape::complex
+namespace complex2d
 {
-	struct ComplexShape
+	namespace shape
 	{
-	protected:
-		shape::primitive::Triangle* triangles = nullptr;
-		shape::primitive::Point position;
-		bool isVisible = true;
+		struct ComplexShape
+		{
+		protected:
+			// Position of left top corner of the shape.
+			primitive2d::Point position;
+			bool visible = true;
+			color::RGB colorRGB;
 
-	public:
-		size_t amountOfTriangles = 0;
+		public:
+			virtual std::shared_ptr<primitive2d::Vertices> getVertices() = 0;
+			color::RGB getColorRGB() const;
+			void setVisibility(const bool isVisible);
+			bool isVisible() const;
+		};
 
-		void setVisibility(const bool isVisible);
-		bool getVisibility();
-		void printCoordinates();
-		Coordinates convertToCoordinates() const;
-	};
+		class Triangle : public ComplexShape
+		{
+			float sideLength;
+		public:
+			std::shared_ptr<primitive2d::Vertices> getVertices() override;
+			Triangle(float sideLength, primitive2d::Point position, color::RGB colorRGB);
 
-	class Circle : public ComplexShape
-	{
-		float radius;
-		color::RGB color_rgb;
+		};
 
-	public:
-		float getRadius() const;
-		color::RGB getColorRGB() const;
+		class Circle : public ComplexShape
+		{
+			float radius;
+			size_t amountOfTriangles;
+			const std::shared_ptr<primitive2d::shape::Triangles> convertToTriangles() const;
+			
+		public:
+			std::shared_ptr<primitive2d::Vertices> getVertices() override;
 
-		/// @brief Calculate triangles that build circle.
-		void calculateTriangles();
+			float getRadius() const;
 
-		Circle(const size_t amountOfTriangles, const float radius, const shape::primitive::Point position = { 0,0,0 });
+			Circle(const size_t amountOfTriangles, const float radius, const primitive2d::Point position = { 0,0 });
 
-		void updateCircle(const shape::primitive::Point& position);
+			// TODO [CODE REFACTOR]:
+			//    - prettify tHiS
+			void updateCircle(const primitive2d::Point& position);
 
-		void updateCircle(const size_t amountOfTriangles);
+			void updateCircle(const size_t amountOfTriangles);
 
-		void updateCircle(const size_t amountOfTriangles, const float radius);
+			void updateCircle(const size_t amountOfTriangles, const float radius);
 
-		void updateCircle(const size_t amountOfTriangles, const float radius, const shape::primitive::Point& position);
+			void updateCircle(const size_t amountOfTriangles, const float radius, const primitive2d::Point& position);
 
-		void updateCircle(color::RGB& color);
-
-		~Circle();
-	};
+			void updateCircle(color::RGB& color);
+		};
+	}
 }
