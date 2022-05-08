@@ -12,32 +12,37 @@ namespace drawable::shape3d
 		const Point3D& verticeX = { position.x + sideLength, position.y,              position.z };
 		const Point3D& verticeY = { position.x,              position.y + sideLength, position.z };
 		const Point3D& verticeXY = { position.x + sideLength, position.y + sideLength, position.z };
-		const Point3D& verticeZ = { position.x,              position.y,              position.z + sideLength };
-		const Point3D& verticeXZ = { position.x + sideLength, position.y,              position.z + sideLength };
-		const Point3D& verticeYZ = { position.x,              position.y + sideLength, position.z + sideLength };
-		const Point3D& verticeXYZ = { position.x + sideLength, position.y + sideLength, position.z + sideLength };
+		const Point3D& verticeZ = { position.x,              position.y,              position.z - sideLength };
+		const Point3D& verticeXZ = { position.x + sideLength, position.y,              position.z - sideLength };
+		const Point3D& verticeYZ = { position.x,              position.y + sideLength, position.z - sideLength };
+		const Point3D& verticeXYZ = { position.x + sideLength, position.y + sideLength, position.z - sideLength };
 
 		// Organize into triangles vertices.
 		return {
-			vertice, verticeXY, verticeX,
-			vertice, verticeXY, verticeY,
+			// Front.
+			verticeXY, verticeY, vertice,
+			verticeX, verticeXY, vertice,
 
-			vertice, verticeXZ, verticeX,
-			vertice, verticeXZ, verticeZ,
+			// Right.
+			verticeXYZ, verticeXY, verticeX,
+			verticeXZ, verticeXYZ, verticeX,
 
-			vertice, verticeYZ, verticeY,
-			vertice, verticeYZ, verticeZ,
+			// Back.
+			verticeYZ, verticeXYZ, verticeXZ,
+			verticeZ, verticeYZ, verticeXZ,
 
-			verticeXYZ, verticeX, verticeXZ,
-			verticeXYZ, verticeX, verticeXY,
+			// Left.
+			verticeY, verticeYZ, verticeZ,
+			vertice, verticeY, verticeZ,
 
-			verticeXYZ, verticeY, verticeYZ,
-			verticeXYZ, verticeY, verticeXY,
+			// Bottom.
+			verticeX, vertice, verticeZ,
+			verticeXZ, verticeX, verticeZ,
 
-			verticeXYZ, verticeZ, verticeYZ,
-			verticeXYZ, verticeZ, verticeXZ,
+			// Top.
+			verticeY, verticeXY, verticeXYZ,
+			verticeYZ, verticeY, verticeXYZ,
 		};
-
 	}
 
 	Hexahedron::Hexahedron(float sideLength, Point3D position, color::RGBA color)
