@@ -12,8 +12,11 @@ namespace color
         RGB operator+(const RGB& other) const;
     };
 
-    struct RGBA : RGB
+    struct RGBA
     {
+        float red = 0.f;
+        float green = 1.f;
+        float blue = 0.f;
         float alfa = 0.f;
 
         RGBA operator+(const RGBA& other) const;
