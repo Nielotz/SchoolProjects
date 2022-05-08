@@ -1,4 +1,4 @@
-#include "../../headers/shape/primitive.h"
+/*#include "../../header/primitive.h"
 #include <iostream>
 
 namespace primitive2d
@@ -61,3 +61,4 @@ void primitive2d::shape::Triangles::print()
 			this->triangles[i].vertices[2].coords.x << " " << this->triangles[i].vertices[2].coords.y << std::endl;
 	}
 }
+*/

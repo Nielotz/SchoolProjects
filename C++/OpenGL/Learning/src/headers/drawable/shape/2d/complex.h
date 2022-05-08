@@ -1,5 +1,5 @@
 #pragma once
-
+/*
 #include <iostream>
 #include <numbers>
 
@@ -62,4 +62,4 @@ namespace complex2d
 			void updateCircle(color::RGB& color);
 		};
 	}
-}
+}*/

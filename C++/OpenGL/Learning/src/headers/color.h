@@ -12,9 +12,16 @@ namespace color
         RGB operator+(const RGB& other) const;
     };
 
-    const RGB kRedRGB = { 1.f, 0.f, 0.f };
-    const RGB kGreenRGB = { 0.f, 1.f, 0.f };
-    const RGB kBlueRGB = { 0.f, 0.f, 1.f };
-    const RGB kYellowRGB = kRedRGB + kGreenRGB;
-    const RGB kPurpleRGB = kRedRGB + kBlueRGB;
+    struct RGBA : RGB
+    {
+        float alfa = 0.f;
+
+        RGBA operator+(const RGBA& other) const;
+    };
+     
+    const RGBA kRedRGBA = { 1.f, 0.f, 0.f };
+    const RGBA kGreenRGBA = { 0.f, 1.f, 0.f };
+    const RGBA kBlueRGBA = { 0.f, 0.f, 1.f };
+    const RGBA kYellowRGBA = kRedRGBA + kGreenRGBA;
+    const RGBA kPurpleRGBA = kRedRGBA + kBlueRGBA;
 }

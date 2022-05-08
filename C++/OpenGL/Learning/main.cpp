@@ -15,7 +15,8 @@
 #include "src/headers/mygl/debug/debug.h"
 #include "src/headers/mygl/texture.h"
 #include "src/headers/mygl/shader/shader.h"
-#include "src/headers/shape/complex.h"
+#include "src/headers/drawable/shape3d.h"
+#include "src/headers/drawable/primitive.h"
 #include "src/headers/transformation.h"
 
 using std::cout;
@@ -33,33 +34,30 @@ namespace control
 
 class TheProgram
 {
-	typedef uint16_t ShapeID;
+	typedef uint64_t ShapeID;
+	typedef drawable::shape3d::Shape Shape3D;
+	typedef drawable::primitive::Point3D Point3D;
 
 	GLFWwindow* window = nullptr;
 
-	std::unordered_map<ShapeID, std::shared_ptr<complex2d::shape::ComplexShape>> complexShapes;
-	// std::unordered_map<string, shape::complex::ComplexShape*> complexShapesMap;
-	// Vertices coordinatesDataForGPU;
+	std::unordered_map<ShapeID, std::unique_ptr<Shape3D>> shapes;
 
 	MyGLShader shader;
 
-	//?
+	// TODO [PERFORMANCE]: Swap to index buffers.
 	unsigned int VBO = 0, VAO = 0;
 
 	// Map key number to callback function.
 	// std::unordered_map<int, std::function<void()>> keyboardCallbacks;
 
-	// std::unordered_set<int> activeComplexShapes;
-	///
-
 	// Transformations.
-	std::unordered_map<ShapeID, vector<transformation3d::Transformer*>> complexShapesTransformers;
+	// std::unordered_map<ShapeID, vector<transformation3d::Transformer*>> complexShapesTransformers;
 	///
 
-	/*
+
 	/// @brief See Shape::ComplexShape.convertToVertices()
-	Vertices convertVisibleComplexShapesToCoordinates()
-	{
+	// Vertices convertVisibleComplexShapesToCoordinates()
+	/*{
 		// Collect visible complex shapes.
 		const size_t amountOfComplexShapes = this->complexShapes.size() + this->complexShapesMap.size();
 		vector<const shape::complex::ComplexShape*> visibleComplexShapes;
@@ -107,9 +105,11 @@ class TheProgram
 	}
 	*/
 
-	glm::f32* transformersMatrixes;
-	void draw()
-	{
+	// glm::f32* transformersMatrixes;
+
+	// Old drawing
+	//void draw()
+	/* {
 		struct ShapeToDraw
 		{
 			ShapeID shapeID;
@@ -121,7 +121,7 @@ class TheProgram
 
 		vector<ShapeToDraw> shapesToDraw;
 
-		// TODO [OPTIMIZATION]: Cache amount of visible shapes.
+		// TODO [PERFORMANCE]: Cache amount of visible shapes.
 		shapesToDraw.reserve(this->complexShapes.size());
 
 		size_t totalAmountOfVertices = 0;
@@ -156,7 +156,7 @@ class TheProgram
 		));
 
 
-		/* Actual drawing. */
+		/* Actual drawing. *_/
 		GLint offset = 0;
 		for (const auto& [complexShapeID, complexShape, vertices] : shapesToDraw)
 		{
@@ -194,6 +194,95 @@ class TheProgram
 		delete[] allVertices;
 
 		myGLCall(glfwSwapBuffers(window));
+	}*/
+
+	// Copy shapes data to the GPU buffer. TODO [OPTIMIZATION]: Do it on update().
+	// Draw all shapes: one shape at the time.
+	void draw()
+	{
+		struct ShapeToDraw
+		{
+			const ShapeID shapeID;
+			const Shape3D* const& shape;
+			const vector<Point3D> points;
+		};
+
+		// TODO [PERFORMANCE]: Cache shapes and update in update().
+		vector<ShapeToDraw> shapesToDraw;
+		shapesToDraw.reserve(this->shapes.size());
+
+		// Fill shapesToDraw and count total amount of vertices.
+		size_t totalAmountOfVertices = 0;
+		for (const auto& [shapeID, shape] : this->shapes)
+		{
+			const vector<Point3D>& shapeVertices = shape->getVertices();
+
+			totalAmountOfVertices += shapeVertices.size();
+
+			shapesToDraw.push_back(ShapeToDraw{ shapeID, shape.get(), shapeVertices });
+		}
+
+		// TODO [PERFORMANCE]: Cache vertices.
+		Point3D* allPoints = new Point3D[totalAmountOfVertices];
+		{
+			size_t offset = 0;
+			for (const auto& [shapeID, shape, points] : shapesToDraw)
+			{
+				std::copy(points.begin(), points.end(), allPoints + offset);
+				offset += points.size();
+			}
+		}
+
+		// TODO [PERFORMANCE]: Move to update.
+		myGLCall(glBufferData(GL_ARRAY_BUFFER,
+			sizeof(Point3D) * totalAmountOfVertices,
+			static_cast<const void*>(allPoints),
+			GL_STATIC_DRAW
+		));
+
+		this->clearScreen();
+
+		// Actual drawing. 
+		GLint offset = 0;
+		for (const auto& [shapeID, shape, points] : shapesToDraw)
+		{
+			const color::RGBA& color = shape->getColor();
+			this->shader.setGLUniform4f("u_colorRGBA", color.red, color.green, color.blue, color.alfa);
+
+			// Transformations.
+			/*
+			if (this->complexShapesTransformers.contains(complexShapeID))
+			{
+				const auto& transformers = this->complexShapesTransformers.at(complexShapeID);
+
+				size_t offset = 0;
+				for (size_t idx = 0; idx < transformers.size(); idx++)
+				{
+					const auto& transformationMatrix = transformers[idx]->calculateTransformationMatrix();
+					std::copy(transformationMatrix, transformationMatrix + sizeof(glm::f32) * 16, transformersMatrixes + offset);
+					offset += 16;
+				}
+
+				ASSERT(transformers.size() <= 4);
+
+				this->shader.setGLlUniformMatrix4fv("u_transformations", transformersMatrixes, (GLsizei)transformers.size());
+				this->shader.setGLlUniform1i("u_transformationsAmount", (const GLint)transformers.size());
+			}
+			else
+				this->shader.setGLlUniform1i("u_transformationsAmount", (const GLint)0);
+			*/
+
+			myGLCall(glDrawArrays(GL_TRIANGLES,
+				(GLint)offset,  // Offset.
+				static_cast<GLsizei>(points.size())
+			));
+
+			offset += points.size();
+		}
+
+		myGLCall(glfwSwapBuffers(window));
+
+		delete[] allPoints;
 	}
 
 	void clearScreen()
@@ -202,30 +291,21 @@ class TheProgram
 		glClear(GL_COLOR_BUFFER_BIT);
 	}
 
+	//void setCallbacks()
 	/*
-	void setCallbacks()
 	{
 		glfwSetWindowUserPointer(this->window, reinterpret_cast<void*>(this));
 
 		glfwSetScrollCallback(this->window, control::scrollCallback);
 		glfwSetKeyCallback(this->window, control::keyboardCallback);
 	}*/
+
 	void handleEvents()
 	{
 		glfwPollEvents();
 	}
 
 public:
-	/*std::unordered_set<int> getActiveComplexShapes()
-	{
-		return this->activeComplexShapes;
-	}*/
-
-	const std::shared_ptr<complex2d::shape::ComplexShape> getComplexShape(int complexShapeID)
-	{
-		return this->complexShapes.at(complexShapeID);
-	}
-
 	void init()
 	{
 		glfwInit();
@@ -233,15 +313,15 @@ public:
 		glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
 		glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-		window = glfwCreateWindow(config::kScreenWidth, config::kScreenHeight, config::kWindowName.c_str(), NULL, NULL);
+		window = glfwCreateWindow(config::kScreenWidth, config::kScreenHeight, config::kWindowName.c_str(), nullptr, nullptr);
 
-		ASSERT(window != NULL);  // Failed to create GLFW window.
+		ASSERT(window != nullptr);  // Failed to create GLFW window.
 
 		glfwMakeContextCurrent(window);
 
 		ASSERT(gladLoadGLLoader((GLADloadproc)glfwGetProcAddress));  // Failed to initialize GLAD.
 
-		this->shader.createProgram();
+		myGLCall(this->shader.createProgram());
 		myGLCall(glUseProgram(this->shader.getShaderProgramID()));
 
 		myGLCall(glGenVertexArrays(1, &VAO));
@@ -250,21 +330,13 @@ public:
 		myGLCall(glGenBuffers(1, &VBO));
 		myGLCall(glBindBuffer(GL_ARRAY_BUFFER, VBO));
 
-		myGLCall(glEnableVertexAttribArray(0));
-
 		// this->setCallbacks();
 
 		myGLCall(glfwSwapInterval(2));
 
-		this->transformersMatrixes = new glm::f32[4 * 16];
+		// this->transformersMatrixes = new glm::f32[4 * 16];
 	}
-	/*
-	void setComplexShapeActive(int shapeID)
-	{
-		ASSERT(shapeID < this->complexShapes.size());
-
-		this->activeComplexShapes.emplace(shapeID);
-	}*/
+	//void setComplexShapeActive(int shapeID)
 
 	void update()
 	{
@@ -274,14 +346,16 @@ public:
 		//	GL_STATIC_DRAW
 		//));
 
-		myGLCall(glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), (void*)0));
-		//myGLCall(glVertexAttribPointer(1, 1, GL_INT, GL_FALSE, 4 * sizeof(float), (void*)12));
+		constexpr GLint kCoordinates = 0;
+		myGLCall(glEnableVertexAttribArray(kCoordinates));
+		myGLCall(glVertexAttribPointer(kCoordinates, 3, GL_FLOAT, GL_FALSE, sizeof(Point3D), (void*)0));
 	}
 
 	/// @brief Add a circle to the scene.
 	/// @param amountOfTriangles 
 	/// @param radius 
 	/// @return id of circle
+	/*
 	int addCircle(const size_t amountOfTriangles, const float radius, const primitive2d::Point& position = { 0,0 })
 	{
 		std::shared_ptr<complex2d::shape::Circle> newCircle = std::make_shared<complex2d::shape::Circle>(amountOfTriangles, radius, position);
@@ -304,15 +378,7 @@ public:
 		return triangleID;
 	}
 
-	void deleteComplexShape(int shapeID)
-	{
-		ASSERT(shapeID < this->complexShapes.size());
-
-		this->complexShapes.erase(shapeID);
-	}
-
-	void updateCircle(int circleID, size_t amountOfTriangles = 0,
-		float radius = -1, color::RGB color = { -1 })
+	void updateCircle(int circleID, size_t amountOfTriangles = 0, float radius = -1, color::RGB color = { -1 })
 	{
 		ASSERT(circleID < this->complexShapes.size());
 
@@ -338,6 +404,20 @@ public:
 		this->updateCircle(circleID, 0, -1, color);
 	}
 
+	*/
+
+	ShapeID addHexahedron(float sideLength, Point3D position = { 0.f, 0.f, 0.f }, color::RGBA color = color::kRedRGBA)
+	{
+		// TODO [OPTIMIZATION]: Swap to random id.
+		ShapeID shapeID = 0;
+		while (this->shapes.contains(shapeID))
+			shapeID++;
+
+		this->shapes[shapeID] = std::make_unique<drawable::shape3d::Hexahedron>(sideLength, position, color);
+
+		return shapeID;
+	}
+
 	void mainLoop()
 	{
 		this->update();
@@ -349,31 +429,8 @@ public:
 		}
 	}
 
-	void toggleShapeVisibility(int complexShapeID)
-	{
-		ASSERT(complexShapeID < this->complexShapes.size());
-
-		std::shared_ptr<complex2d::shape::ComplexShape> shape = this->complexShapes[complexShapeID];
-		shape->setVisibility(!shape->isVisible());
-	}
-
-	/*
-	void toggleShapeVisibilityOnKey(int complexShapeID, int key)
-	{
-		std::function<void()> func = [this, complexShapeID] {
-			this->toggleShapeVisibility(complexShapeID);
-		};
-
-		this->keyboardCallbacks[key] = func;
-	}
-
-	auto getKeyboardCallbacks() const
-	{
-		return this->keyboardCallbacks;
-	}
-	*/
-
 	// Transformations.
+	/*
 	void addTransformation(
 		const ShapeID complexShapeID,
 		const transformation3d::TransformatingType& tansformerType,
@@ -402,6 +459,7 @@ public:
 
 		this->complexShapesTransformers[complexShapeID].push_back(transformer);
 	}
+	*/
 	///
 
 	~TheProgram()
@@ -413,9 +471,11 @@ public:
 		glfwTerminate();
 
 		// Transformations.
+		/*
 		for (auto& [complexShape, vectorOfTransformations] : this->complexShapesTransformers)
 			for (auto& transformation : vectorOfTransformations)
 				delete transformation;
+		*/
 		///
 	}
 };
@@ -460,27 +520,8 @@ int main()
 	TheProgram program;
 	program.init();
 
-	auto redTriangle = program.addTriangle(0.2f, { -0.1f, 0.1f }, color::kRedRGB);
-	auto greenTriangle = program.addTriangle(0.2f, { -0.1f, 0.1f }, color::kGreenRGB);
-	auto blueTriangle = program.addTriangle(0.2f, { -0.1f, 0.1f }, color::kBlueRGB);
-	auto yellowTriangle = program.addTriangle(0.2f, { -0.1f, 0.1f }, color::kPurpleRGB);
-
-	program.addTransformation(redTriangle, transformation3d::TransformatingType::Slide, { -0.6f, 0.8f, 0.f });
-	program.addTransformation(redTriangle, transformation3d::TransformatingType::ContinousSlide, { 0.2f, 0.f, 0.f });
-
-	program.addTransformation(greenTriangle, transformation3d::TransformatingType::Slide, { 0.6f, -0.6f, 0.f });
-	program.addTransformation(greenTriangle, transformation3d::TransformatingType::ContinousRotate, { 0.f, 0.f, 2.f });
-
-	program.addTransformation(blueTriangle, transformation3d::TransformatingType::Slide, { -0.6f, -0.6f, 0.f });
-	program.addTransformation(blueTriangle, transformation3d::TransformatingType::ContinousScale, { 1.f, 1.f, 1.f });
-
-	program.addTransformation(yellowTriangle, transformation3d::TransformatingType::Slide, { 0.6f, 0.8f, 0.f });
-	program.addTransformation(yellowTriangle, transformation3d::TransformatingType::ContinousSlide, { 0.2f, 0.f, 0.f });
-	program.addTransformation(yellowTriangle, transformation3d::TransformatingType::ContinousRotate, { 0.f, 0.f, 2.f });
-	program.addTransformation(yellowTriangle, transformation3d::TransformatingType::ContinousScale, { 1.f, 1.f, 1.f });
-
+	program.addHexahedron(1.f);
 
 	program.mainLoop();
-
 	return 0;
 }

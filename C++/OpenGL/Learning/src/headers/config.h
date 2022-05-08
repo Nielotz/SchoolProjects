@@ -10,6 +10,7 @@ namespace config
 
 	namespace path
 	{
-		const std::string shaders = "src/mygl/shader/transforming_triangles.shader";
+		// const std::string shaders = "src/mygl/shader/transforming_triangles.shader";
+		const std::string shaders = "src/mygl/shader/my_first_3d!.shader";
 	}
 }

@@ -1,4 +1,4 @@
-#include "../headers/shape/complex.h"
+/*#include "../headers/shape/complex.h"
 #include "../headers/mygl/debug/debug.h"
 
 namespace complex2d::shape
@@ -72,7 +72,7 @@ namespace complex2d::shape
 		}
 		return vertices;
 	}
-	*/
+	*_/
 
 	color::RGB ComplexShape::getColorRGB() const
 	{
@@ -104,7 +104,7 @@ namespace complex2d::shape
 			previousEdgePoint = this->triangles[trianglesIdx].vertices[2];
 		}
 	}
-	*/
+	*_/
 
 	std::shared_ptr<primitive2d::Vertices> Circle::getVertices()
 	{
@@ -217,4 +217,4 @@ namespace complex2d::shape
 		this->position = position;
 		this->colorRGB = colorRGB;
 	}
-}
+}*/
