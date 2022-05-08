@@ -13,4 +13,9 @@ namespace config
 		// const std::string shaders = "src/mygl/shader/transforming_triangles.shader";
 		const std::string shaders = "src/mygl/shader/my_first_3d!.shader";
 	}
+
+	namespace control
+	{
+		constexpr float mouseSensitivity = 0.1;
+	}
 }
