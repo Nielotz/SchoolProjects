@@ -1,10 +1,12 @@
 <VertexShader>
 #version 330 core
-layout(location = 0) in vec3 position;
+layout(location = 0) in vec4 position;
+
+uniform mat4 u_MVP;
 
 void main()
 {
-	gl_Position = vec4(position.x, position.y, position.z, 1.0);
+	gl_Position = u_MVP * position;
 };
 
 <FragmentShader>

@@ -1,15 +1,13 @@
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
-#include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
-#include <glm/gtc/type_ptr.hpp>
 
 #include <iostream>
 #include <numbers>
 #include <vector>
 #include <string>
+#include <sstream>
 #include <unordered_map>
-#include <unordered_set>
+#include <list>
 #include <functional>
 
 #include "src/headers/mygl/debug/debug.h"
@@ -18,19 +16,23 @@
 #include "src/headers/drawable/shape3d.h"
 #include "src/headers/drawable/primitive.h"
 #include "src/headers/transformation.h"
+#include "src/headers/model_view_projection.h"
 
 using std::cout;
 using std::endl;
 using std::string;
 using std::vector;
 
-/*
+
 namespace control
 {
-	void scrollCallback(GLFWwindow* window, double xoffset, double yoffset);
+	float lastX = config::kScreenWidth / 2;
+	float lastY = config::kScreenHeight / 2;
+
+	void mouseMoveCallback(GLFWwindow* window, double posX, double posY);
 	void keyboardCallback(GLFWwindow* window, int key, int scancode, int action, int mods);
 };
-*/
+
 
 class TheProgram
 {
@@ -42,18 +44,28 @@ class TheProgram
 
 	std::unordered_map<ShapeID, std::unique_ptr<Shape3D>> shapes;
 
+	typedef int KeyID;
+	std::unordered_map<KeyID, std::function<void()>> keyboardOnPressRepeatEvents;
+	std::vector<std::pair<std::string, std::function<void()>>> mouseOnMoveEvents;
+
 	MyGLShader shader;
 
 	// TODO [PERFORMANCE]: Swap to index buffers.
 	unsigned int VBO = 0, VAO = 0;
 
+	MVP modelViewProjection;
+
+	// In seconds.
+	float lastFrameRenderDeltaTime = 0.f;
+	// Time from glfwGetTime() received after render of a frame. In seconds.
+	float lastStartFrameRenderTime = 0.f;
+
 	// Map key number to callback function.
-	// std::unordered_map<int, std::function<void()>> keyboardCallbacks;
+	// std::unordered_map<int, std::function<void()>> keyboardOnPressRepeatEvents;
 
 	// Transformations.
 	// std::unordered_map<ShapeID, vector<transformation3d::Transformer*>> complexShapesTransformers;
 	///
-
 
 	/// @brief See Shape::ComplexShape.convertToVertices()
 	// Vertices convertVisibleComplexShapesToCoordinates()
@@ -200,6 +212,7 @@ class TheProgram
 	// Draw all shapes: one shape at the time.
 	void draw()
 	{
+		// Prepare data to draw.
 		struct ShapeToDraw
 		{
 			const ShapeID shapeID;
@@ -242,45 +255,59 @@ class TheProgram
 
 		this->clearScreen();
 
+		auto x = this->modelViewProjection.getMVP();
+		this->shader.setGLlUniformMat4f("u_MVP", x);
+
 		// Actual drawing. 
 		GLint offset = 0;
 		for (const auto& [shapeID, shape, points] : shapesToDraw)
 		{
-			const color::RGBA& color = shape->getColor();
-			this->shader.setGLUniform4f("u_colorRGBA", color.red, color.green, color.blue, color.alfa);
-
-			// Transformations.
-			/*
-			if (this->complexShapesTransformers.contains(complexShapeID))
+			for (auto i = 0; i < points.size(); i += 3)
 			{
-				const auto& transformers = this->complexShapesTransformers.at(complexShapeID);
+				const color::RGBA& color = shape->getColor();
+				this->shader.setGLUniform4f("u_colorRGBA", color.red, color.green + i / 50.f, color.blue + i / 50.f, color.alfa);
+				// this->shader.setGLUniform4f("u_colorRGBA", 0.5, 0.5, 0.5, color.alfa);
 
-				size_t offset = 0;
-				for (size_t idx = 0; idx < transformers.size(); idx++)
+				// Transformations.
+				/*
+				if (this->complexShapesTransformers.contains(complexShapeID))
 				{
-					const auto& transformationMatrix = transformers[idx]->calculateTransformationMatrix();
-					std::copy(transformationMatrix, transformationMatrix + sizeof(glm::f32) * 16, transformersMatrixes + offset);
-					offset += 16;
+					const auto& transformers = this->complexShapesTransformers.at(complexShapeID);
+
+					size_t offset = 0;
+					for (size_t idx = 0; idx < transformers.size(); idx++)
+					{
+						const auto& transformationMatrix = transformers[idx]->calculateTransformationMatrix();
+						std::copy(transformationMatrix, transformationMatrix + sizeof(glm::f32) * 16, transformersMatrixes + offset);
+						offset += 16;
+					}
+
+					ASSERT(transformers.size() <= 4);
+
+					this->shader.setGLlUniformMatrix4fv("u_transformations", transformersMatrixes, (GLsizei)transformers.size());
+					this->shader.setGLlUniform1i("u_transformationsAmount", (const GLint)transformers.size());
 				}
+				else
+					this->shader.setGLlUniform1i("u_transformationsAmount", (const GLint)0);
+				*/
 
-				ASSERT(transformers.size() <= 4);
+				myGLCall(glDrawArrays(GL_TRIANGLES,
+					(GLint)offset,  // Offset.
+					static_cast<GLsizei>(3)
+				));
 
-				this->shader.setGLlUniformMatrix4fv("u_transformations", transformersMatrixes, (GLsizei)transformers.size());
-				this->shader.setGLlUniform1i("u_transformationsAmount", (const GLint)transformers.size());
+				offset += 3;
 			}
-			else
-				this->shader.setGLlUniform1i("u_transformationsAmount", (const GLint)0);
-			*/
 
-			myGLCall(glDrawArrays(GL_TRIANGLES,
-				(GLint)offset,  // Offset.
-				static_cast<GLsizei>(points.size())
-			));
-
-			offset += points.size();
+			offset += GLint(points.size());
 		}
 
 		myGLCall(glfwSwapBuffers(window));
+
+		std::stringstream title;
+		const auto& renderTime = this->lastFrameRenderDeltaTime;
+		title << 1. / renderTime << " " << renderTime << "ms";
+		glfwSetWindowTitle(window, title.str().c_str());
 
 		delete[] allPoints;
 	}
@@ -288,21 +315,76 @@ class TheProgram
 	void clearScreen()
 	{
 		glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
-		glClear(GL_COLOR_BUFFER_BIT);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+		// glClear(GL_COLOR_BUFFER_BIT);
 	}
 
-	//void setCallbacks()
-	/*
+	void setEvents()
 	{
-		glfwSetWindowUserPointer(this->window, reinterpret_cast<void*>(this));
+		// Keyboard.
+		const auto& getMoveDistance = [this]() -> float {
+			return this->lastFrameRenderDeltaTime * config::control::kMoveSpeed;
+		};
 
-		glfwSetScrollCallback(this->window, control::scrollCallback);
-		glfwSetKeyCallback(this->window, control::keyboardCallback);
-	}*/
+		this->keyboardOnPressRepeatEvents['Q'] = [this, getMoveDistance] { this->modelViewProjection.view.moveUp(getMoveDistance()); };
+		this->keyboardOnPressRepeatEvents['E'] = [this, getMoveDistance] { this->modelViewProjection.view.moveDown(getMoveDistance()); };
+		this->keyboardOnPressRepeatEvents['W'] = [this, getMoveDistance] { this->modelViewProjection.view.moveFront(getMoveDistance()); };
+		this->keyboardOnPressRepeatEvents['A'] = [this, getMoveDistance] { this->modelViewProjection.view.moveLeft(getMoveDistance()); };
+		this->keyboardOnPressRepeatEvents['S'] = [this, getMoveDistance] { this->modelViewProjection.view.moveBack(getMoveDistance()); };
+		this->keyboardOnPressRepeatEvents['D'] = [this, getMoveDistance] { this->modelViewProjection.view.moveRight(getMoveDistance()); };
+
+		// Mouse.
+		glfwSetInputMode(this->window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);  // Hide coursor.
+
+		const auto& moveLook = [this]() {
+			double xPos, yPos;
+			glfwGetCursorPos(this->window, &xPos, &yPos);
+
+			xPos -= config::kScreenCenterHorizontal;
+			yPos -= config::kScreenCenterVertical;
+
+			// TODO [OPTIMIZATION]
+			// Skip to high movement, like entering the window.
+			if (abs(xPos) > config::kScreenWidth / 3. || abs(yPos) > config::kScreenHeight / 3.)
+				return;
+
+			const float& yaw = float(xPos) * config::control::kMouseSensitivity;
+			const float& pitch = -float(yPos) * config::control::kMouseSensitivity;
+
+			logging::info("Moving yaw by", yaw);
+			logging::info("Moving pitch by", pitch);
+			this->modelViewProjection.view.moveLook(yaw, pitch);
+		};
+
+		this->mouseOnMoveEvents.reserve(10);
+
+		this->mouseOnMoveEvents.push_back({ "UpdateMoveLook", [this, moveLook] { moveLook(); } });
+		this->mouseOnMoveEvents.push_back({ "SetCursorCenter", [this] { glfwSetCursorPos(this->window, config::kScreenCenterHorizontal, config::kScreenCenterVertical); } });
+	}
+
+	void setCallbacks()
+	{
+		// glfwSetWindowUserPointer(this->window, reinterpret_cast<void*>(this));
+		// glfwSetCursorPosCallback(this->window, control::mouseMoveCallback);
+		// glfwSetKeyCallback(this->window, control::keyboardCallback);
+	}
 
 	void handleEvents()
 	{
 		glfwPollEvents();
+
+		// Hande keyboard.
+		for (const auto& [key, callback] : this->keyboardOnPressRepeatEvents)
+		{
+			const auto& eventType = glfwGetKey(window, key);
+			if (eventType == GLFW_PRESS || eventType == GLFW_REPEAT)
+				callback();
+		}
+
+		// Handle mouse.
+		for (const auto& callbackWithName : this->mouseOnMoveEvents)
+			callbackWithName.second();
 	}
 
 public:
@@ -330,22 +412,18 @@ public:
 		myGLCall(glGenBuffers(1, &VBO));
 		myGLCall(glBindBuffer(GL_ARRAY_BUFFER, VBO));
 
-		// this->setCallbacks();
+		this->setCallbacks();
+		this->setEvents();
 
-		myGLCall(glfwSwapInterval(2));
+		myGLCall(glfwSwapInterval(0));
 
+		glfwSetTime(0.0);
 		// this->transformersMatrixes = new glm::f32[4 * 16];
 	}
 	//void setComplexShapeActive(int shapeID)
 
 	void update()
 	{
-		//myGLCall(glBufferData(GL_ARRAY_BUFFER,
-		//	sizeof(float) * this->coordinatesDataForGPU.amountOfVertices,
-		//	this->coordinatesDataForGPU.vertices,
-		//	GL_STATIC_DRAW
-		//));
-
 		constexpr GLint kCoordinates = 0;
 		myGLCall(glEnableVertexAttribArray(kCoordinates));
 		myGLCall(glVertexAttribPointer(kCoordinates, 3, GL_FLOAT, GL_FALSE, sizeof(Point3D), (void*)0));
@@ -424,8 +502,14 @@ public:
 
 		while (!glfwWindowShouldClose(window))
 		{
-			this->draw();
+			// Update frame time.
+			{
+				const float& now = float(glfwGetTime());
+				this->lastFrameRenderDeltaTime = now - this->lastStartFrameRenderTime;
+				this->lastStartFrameRenderTime = now;
+			}
 			this->handleEvents();
+			this->draw();
 		}
 	}
 
@@ -462,6 +546,12 @@ public:
 	*/
 	///
 
+	/*
+	auto getKeyboardCallbacks() const
+	{
+		return this->keyboardOnPressRepeatEvents;
+	}*/
+
 	~TheProgram()
 	{
 		myGLCall(glDeleteVertexArrays(1, &VAO));
@@ -480,47 +570,29 @@ public:
 	}
 };
 
-/*
+
 namespace control
 {
-	void scrollCallback(GLFWwindow* window, double xoffset, double yoffset)
+	void mouseMoveCallback(GLFWwindow* window, double posX, double posY)
 	{
 		TheProgram* program = static_cast<TheProgram*>(glfwGetWindowUserPointer(window));
-		//const shape::complex::Circle* circle = static_cast<const shape::complex::Circle*>(program->getComplexShape(program->activeComplexShapes));
-
-		//if (yoffset < 0 && circle->amountOfTriangles <= 3)
-		//	return;
-
-		//program->updateCircle(program->activeComplexShapes, circle->amountOfTriangles + int(yoffset));
-
-		program->update();
+		// program->update();
 	}
 
 	void keyboardCallback(GLFWwindow* window, int key, int scancode, int action, int mods)
 	{
-		TheProgram* program = static_cast<TheProgram*>(glfwGetWindowUserPointer(window));
-		const auto& keyboardCallbacks = program->getKeyboardCallbacks();
-
-		if (action == GLFW_PRESS)
-		{
-			if (keyboardCallbacks.contains(key))
-			{
-				keyboardCallbacks.find(key)->second();
-				program->update();
-			}
-			else
-				cout << "Detected unhandled keyboard event: " << key << endl;
-		}
+		// Use glfwSetKeyCallback?
+		//TheProgram* program = static_cast<TheProgram*>(glfwGetWindowUserPointer(window));
 	}
 };
-*/
 
 int main()
 {
 	TheProgram program;
 	program.init();
-
-	program.addHexahedron(1.f);
+	glEnable(GL_DEPTH_TEST);
+	const float size = 0.2f;
+	program.addHexahedron(size);
 
 	program.mainLoop();
 	return 0;

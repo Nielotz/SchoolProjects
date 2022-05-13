@@ -4,6 +4,10 @@
 #include <iostream>
 #include <vector>
 
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
+
 class MyGLShader
 {
 	GLuint shaderProgramID;
@@ -29,6 +33,7 @@ public:
 	GLuint getShaderProgramID();
 	void setGLUniform4f(const GLchar* uniformName, GLfloat v0, GLfloat v1, GLfloat v2, GLfloat v3);
 	void setGLlUniformMatrix4fv(const GLchar* uniformName, const GLfloat* value, GLsizei count = 1, GLboolean transpose = GL_FALSE);
+	void setGLlUniformMat4f(const GLchar* uniformName, const glm::mat4& mat, GLsizei count = 1, GLboolean transpose = GL_FALSE);
 	void setGLlUniform1i(const GLchar* uniformName, const GLint value);
-
+	
 };

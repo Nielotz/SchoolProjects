@@ -161,6 +161,11 @@ void MyGLShader::setGLlUniformMatrix4fv(const GLchar* uniformName, const GLfloat
 	myGLCall(glUniformMatrix4fv(u_ID, count, transpose, value));
 }
 
+void MyGLShader::setGLlUniformMat4f(const GLchar* uniformName, const glm::mat4& mat, GLsizei count, GLboolean transpose)
+{
+	setGLlUniformMatrix4fv(uniformName, &mat[0][0], count, transpose);
+}
+
 void MyGLShader::setGLlUniform1i(const GLchar* uniformName, const GLint value)
 {
 	myGLCall(auto u_ID = glGetUniformLocation(this->shaderProgramID, uniformName));
