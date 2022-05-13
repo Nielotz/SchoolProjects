@@ -14,8 +14,7 @@ namespace config
 
 	namespace path
 	{
-		// const std::string shaders = "src/mygl/shader/transforming_triangles.shader";
-		const std::string shaders = "src/mygl/shader/my_first_3d!.shader";
+		const std::string shaders = "src/mygl/shader/rotating_cube.shader";
 	}
 
 	namespace control
