@@ -6,6 +6,10 @@ namespace config
 {
 	constexpr unsigned int kScreenWidth = 800;
 	constexpr unsigned int kScreenHeight = 800;
+
+	constexpr unsigned int kScreenCenterHorizontal = kScreenWidth / 2;
+	constexpr unsigned int kScreenCenterVertical = kScreenHeight / 2;
+
 	const std::string kWindowName = "";
 
 	namespace path
@@ -16,6 +20,7 @@ namespace config
 
 	namespace control
 	{
-		constexpr float mouseSensitivity = 0.1;
+		constexpr float kMoveSpeed = 0.5f;  // Units per second. 
+		constexpr float kMouseSensitivity = 0.1f;  // Sth per sth else
 	}
 }

@@ -5,34 +5,35 @@
 #include "headers/logging/logging.h"
 
 
-void MVP::View::moveUp()
+void MVP::View::moveUp(const float& moveDistance)
 {
-	this->lookingFrom += this->up * moveSpeed;
+	this->lookingFrom += this->up * moveDistance;
 }
 
-void MVP::View::moveDown()
+void MVP::View::moveDown(const float& moveDistance)
 {
-	this->lookingFrom -= this->up * moveSpeed;
+	this->lookingFrom -= this->up * moveDistance;
 }
 
-void MVP::View::moveLeft()
+void MVP::View::moveLeft(const float& moveDistance)
 {
-	this->lookingFrom += glm::normalize(glm::cross(this->lookingFrom, this->up)) * moveSpeed;
+	//logging::info("Moving left", moveDistance);
+	this->lookingFrom += glm::normalize(glm::cross(this->lookingFrom, this->up)) * moveDistance;
 }
 
-void MVP::View::moveRight()
+void MVP::View::moveRight(const float& moveDistance)
 {
-	this->lookingFrom -= glm::normalize(glm::cross(this->lookingFrom, this->up)) * moveSpeed;
+	this->lookingFrom -= glm::normalize(glm::cross(this->lookingFrom, this->up)) * moveDistance;
 }
 
-void MVP::View::moveFront()
+void MVP::View::moveFront(const float& moveDistance)
 {
-	this->lookingFrom += moveSpeed * this->lookingDirection;
+	this->lookingFrom += this->lookingDirection * moveDistance;
 }
 
-void MVP::View::moveBack()
+void MVP::View::moveBack(const float& moveDistance)
 {
-	this->lookingFrom -= moveSpeed * this->lookingDirection;
+	this->lookingFrom -= this->lookingDirection * moveDistance;
 }
 
 void MVP::View::moveLook(const float& yaw, const float& pitch)

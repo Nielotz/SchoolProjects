@@ -5,8 +5,9 @@
 #include <numbers>
 #include <vector>
 #include <string>
+#include <sstream>
 #include <unordered_map>
-#include <unordered_set>
+#include <list>
 #include <functional>
 
 #include "src/headers/mygl/debug/debug.h"
@@ -43,7 +44,9 @@ class TheProgram
 
 	std::unordered_map<ShapeID, std::unique_ptr<Shape3D>> shapes;
 
-	std::unordered_map<int, std::function<void()>> keyboardCallbacks;
+	typedef int KeyID;
+	std::unordered_map<KeyID, std::function<void()>> keyboardOnPressRepeatEvents;
+	std::vector<std::pair<std::string, std::function<void()>>> mouseOnMoveEvents;
 
 	MyGLShader shader;
 
@@ -52,13 +55,17 @@ class TheProgram
 
 	MVP modelViewProjection;
 
+	// In seconds.
+	float lastFrameRenderDeltaTime = 0.f;
+	// Time from glfwGetTime() received after render of a frame. In seconds.
+	float lastStartFrameRenderTime = 0.f;
+
 	// Map key number to callback function.
-	// std::unordered_map<int, std::function<void()>> keyboardCallbacks;
+	// std::unordered_map<int, std::function<void()>> keyboardOnPressRepeatEvents;
 
 	// Transformations.
 	// std::unordered_map<ShapeID, vector<transformation3d::Transformer*>> complexShapesTransformers;
 	///
-
 
 	/// @brief See Shape::ComplexShape.convertToVertices()
 	// Vertices convertVisibleComplexShapesToCoordinates()
@@ -205,6 +212,7 @@ class TheProgram
 	// Draw all shapes: one shape at the time.
 	void draw()
 	{
+		// Prepare data to draw.
 		struct ShapeToDraw
 		{
 			const ShapeID shapeID;
@@ -257,7 +265,8 @@ class TheProgram
 			for (auto i = 0; i < points.size(); i += 3)
 			{
 				const color::RGBA& color = shape->getColor();
-				this->shader.setGLUniform4f("u_colorRGBA", color.red, color.green + i / 50., color.blue + i / 50., color.alfa);
+				this->shader.setGLUniform4f("u_colorRGBA", color.red, color.green + i / 50.f, color.blue + i / 50.f, color.alfa);
+				// this->shader.setGLUniform4f("u_colorRGBA", 0.5, 0.5, 0.5, color.alfa);
 
 				// Transformations.
 				/*
@@ -290,10 +299,15 @@ class TheProgram
 				offset += 3;
 			}
 
-			offset += points.size();
+			offset += GLint(points.size());
 		}
 
 		myGLCall(glfwSwapBuffers(window));
+
+		std::stringstream title;
+		const auto& renderTime = this->lastFrameRenderDeltaTime;
+		title << 1. / renderTime << " " << renderTime << "ms";
+		glfwSetWindowTitle(window, title.str().c_str());
 
 		delete[] allPoints;
 	}
@@ -301,42 +315,79 @@ class TheProgram
 	void clearScreen()
 	{
 		glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
-		glClear(GL_COLOR_BUFFER_BIT);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+		// glClear(GL_COLOR_BUFFER_BIT);
+	}
+
+	void setEvents()
+	{
+		// Keyboard.
+		const auto& getMoveDistance = [this]() -> float {
+			return this->lastFrameRenderDeltaTime * config::control::kMoveSpeed;
+		};
+
+		this->keyboardOnPressRepeatEvents['Q'] = [this, getMoveDistance] { this->modelViewProjection.view.moveUp(getMoveDistance()); };
+		this->keyboardOnPressRepeatEvents['E'] = [this, getMoveDistance] { this->modelViewProjection.view.moveDown(getMoveDistance()); };
+		this->keyboardOnPressRepeatEvents['W'] = [this, getMoveDistance] { this->modelViewProjection.view.moveFront(getMoveDistance()); };
+		this->keyboardOnPressRepeatEvents['A'] = [this, getMoveDistance] { this->modelViewProjection.view.moveLeft(getMoveDistance()); };
+		this->keyboardOnPressRepeatEvents['S'] = [this, getMoveDistance] { this->modelViewProjection.view.moveBack(getMoveDistance()); };
+		this->keyboardOnPressRepeatEvents['D'] = [this, getMoveDistance] { this->modelViewProjection.view.moveRight(getMoveDistance()); };
+
+		// Mouse.
+		glfwSetInputMode(this->window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);  // Hide coursor.
+
+		const auto& moveLook = [this]() {
+			double xPos, yPos;
+			glfwGetCursorPos(this->window, &xPos, &yPos);
+
+			xPos -= config::kScreenCenterHorizontal;
+			yPos -= config::kScreenCenterVertical;
+
+			// TODO [OPTIMIZATION]
+			// Skip to high movement, like entering the window.
+			if (abs(xPos) > config::kScreenWidth / 3. || abs(yPos) > config::kScreenHeight / 3.)
+				return;
+
+			const float& yaw = float(xPos) * config::control::kMouseSensitivity;
+			const float& pitch = -float(yPos) * config::control::kMouseSensitivity;
+
+			logging::info("Moving yaw by", yaw);
+			logging::info("Moving pitch by", pitch);
+			this->modelViewProjection.view.moveLook(yaw, pitch);
+		};
+
+		this->mouseOnMoveEvents.reserve(10);
+
+		this->mouseOnMoveEvents.push_back({ "UpdateMoveLook", [this, moveLook] { moveLook(); } });
+		this->mouseOnMoveEvents.push_back({ "SetCursorCenter", [this] { glfwSetCursorPos(this->window, config::kScreenCenterHorizontal, config::kScreenCenterVertical); } });
 	}
 
 	void setCallbacks()
 	{
-		glfwSetWindowUserPointer(this->window, reinterpret_cast<void*>(this));
-
-		glfwSetCursorPosCallback(this->window, control::mouseMoveCallback);
-		glfwSetKeyCallback(this->window, control::keyboardCallback);
-
-		this->keyboardCallbacks['Q'] = [this] { this->modelViewProjection.view.moveUp(); };
-		this->keyboardCallbacks['E'] = [this] { this->modelViewProjection.view.moveDown(); };
-		this->keyboardCallbacks['W'] = [this] { this->modelViewProjection.view.moveFront(); };
-		this->keyboardCallbacks['A'] = [this] { this->modelViewProjection.view.moveLeft(); };
-		this->keyboardCallbacks['S'] = [this] { this->modelViewProjection.view.moveBack(); };
-		this->keyboardCallbacks['D'] = [this] { this->modelViewProjection.view.moveRight(); };
-
-		glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+		// glfwSetWindowUserPointer(this->window, reinterpret_cast<void*>(this));
+		// glfwSetCursorPosCallback(this->window, control::mouseMoveCallback);
+		// glfwSetKeyCallback(this->window, control::keyboardCallback);
 	}
 
 	void handleEvents()
 	{
 		glfwPollEvents();
+
+		// Hande keyboard.
+		for (const auto& [key, callback] : this->keyboardOnPressRepeatEvents)
+		{
+			const auto& eventType = glfwGetKey(window, key);
+			if (eventType == GLFW_PRESS || eventType == GLFW_REPEAT)
+				callback();
+		}
+
+		// Handle mouse.
+		for (const auto& callbackWithName : this->mouseOnMoveEvents)
+			callbackWithName.second();
 	}
 
 public:
-	/// <summary>
-	/// Update position where camera points.
-	/// </summary>
-	/// <param name="yaw">Difference in yaw</param>
-	/// <param name="pitch">Difference in pitch</param>
-	void moveLook(const float& yaw, const float& pitch)
-	{
-		this->modelViewProjection.view.moveLook(yaw, pitch);
-	}
-
 	void init()
 	{
 		glfwInit();
@@ -362,9 +413,11 @@ public:
 		myGLCall(glBindBuffer(GL_ARRAY_BUFFER, VBO));
 
 		this->setCallbacks();
+		this->setEvents();
 
-		myGLCall(glfwSwapInterval(2));
+		myGLCall(glfwSwapInterval(0));
 
+		glfwSetTime(0.0);
 		// this->transformersMatrixes = new glm::f32[4 * 16];
 	}
 	//void setComplexShapeActive(int shapeID)
@@ -449,8 +502,14 @@ public:
 
 		while (!glfwWindowShouldClose(window))
 		{
-			this->draw();
+			// Update frame time.
+			{
+				const float& now = float(glfwGetTime());
+				this->lastFrameRenderDeltaTime = now - this->lastStartFrameRenderTime;
+				this->lastStartFrameRenderTime = now;
+			}
 			this->handleEvents();
+			this->draw();
 		}
 	}
 
@@ -487,10 +546,11 @@ public:
 	*/
 	///
 
+	/*
 	auto getKeyboardCallbacks() const
 	{
-		return this->keyboardCallbacks;
-	}
+		return this->keyboardOnPressRepeatEvents;
+	}*/
 
 	~TheProgram()
 	{
@@ -514,42 +574,15 @@ public:
 namespace control
 {
 	void mouseMoveCallback(GLFWwindow* window, double posX, double posY)
-	{	
+	{
 		TheProgram* program = static_cast<TheProgram*>(glfwGetWindowUserPointer(window));
-
-		float xOffset = posX - lastX;
-		float yOffset = lastY - posY;  // Reversed because y-coordinate range from bottom to top.
-
-		lastX = posX;
-		lastY = posY;
-
-		if (xOffset > config::kScreenHeight - 50 || yOffset > config::kScreenWidth - 50)
-			return;
-
-		xOffset *= config::control::mouseSensitivity;
-		yOffset *= config::control::mouseSensitivity;
-
-		program->moveLook(xOffset, yOffset);
-
 		// program->update();
 	}
 
 	void keyboardCallback(GLFWwindow* window, int key, int scancode, int action, int mods)
 	{
-		TheProgram* program = static_cast<TheProgram*>(glfwGetWindowUserPointer(window));
-		const auto& keyboardCallbacks = program->getKeyboardCallbacks();
-
-		// TODO [Fix]
-		if (action == GLFW_PRESS || action == GLFW_REPEAT)
-		{
-			if (keyboardCallbacks.contains(key))
-			{
-				keyboardCallbacks.find(key)->second();
-				// program->update();
-			}
-			else
-				cout << "Detected unhandled keyboard event: " << key << endl;
-		}
+		// Use glfwSetKeyCallback?
+		//TheProgram* program = static_cast<TheProgram*>(glfwGetWindowUserPointer(window));
 	}
 };
 
@@ -557,7 +590,7 @@ int main()
 {
 	TheProgram program;
 	program.init();
-	// glEnable(GL_CULL_FACE);
+	glEnable(GL_DEPTH_TEST);
 	const float size = 0.2f;
 	program.addHexahedron(size);
 
