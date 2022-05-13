@@ -26,9 +26,6 @@ using std::vector;
 
 namespace control
 {
-	float lastX = config::kScreenWidth / 2;
-	float lastY = config::kScreenHeight / 2;
-
 	void mouseMoveCallback(GLFWwindow* window, double posX, double posY);
 	void keyboardCallback(GLFWwindow* window, int key, int scancode, int action, int mods);
 };
@@ -60,153 +57,11 @@ class TheProgram
 	// Time from glfwGetTime() received after render of a frame. In seconds.
 	float lastStartFrameRenderTime = 0.f;
 
-	// Map key number to callback function.
-	// std::unordered_map<int, std::function<void()>> keyboardOnPressRepeatEvents;
-
 	// Transformations.
 	// std::unordered_map<ShapeID, vector<transformation3d::Transformer*>> complexShapesTransformers;
 	///
 
-	/// @brief See Shape::ComplexShape.convertToVertices()
-	// Vertices convertVisibleComplexShapesToCoordinates()
-	/*{
-		// Collect visible complex shapes.
-		const size_t amountOfComplexShapes = this->complexShapes.size() + this->complexShapesMap.size();
-		vector<const shape::complex::ComplexShape*> visibleComplexShapes;
-		visibleComplexShapes.reserve(amountOfComplexShapes);
-
-		for (const auto& complexShape : this->complexShapes)
-			if (complexShape->isVisible())
-				visibleComplexShapes.emplace_back(complexShape);
-
-		for (const auto& [complexShapeName, complexShape] : this->complexShapesMap)
-			if (complexShape->isVisible())
-				visibleComplexShapes.emplace_back(complexShape);
-
-		// Count total amount of visible triangles.
-		size_t amountOfTriangles = 0;
-
-		for (const auto& complexShape : visibleComplexShapes)
-			amountOfTriangles += complexShape->amountOfTriangles;
-
-		// Convert amount of triangles to amount of vertices.
-		const size_t amountOfVertices = amountOfTriangles * kCoordinatesPerTriangle;
-
-		// Agregate vertices into allCoordinates.
-		Vertices allCoordinates = { new float[amountOfVertices] , amountOfVertices };
-		size_t destinationOffset = 0;
-
-		/// @brief Copy sourceComplexShape vertices to destination + destinationOffset.
-		///
-		/// @return amount of copied vertices
-		for (const shape::complex::ComplexShape* complexShape : visibleComplexShapes)
-		{
-			const Vertices& complexShapeCoordinates = complexShape->convertToVertices();
-
-			const float* complexShapeCoordinatesStart = complexShapeCoordinates.vertices;
-			const float* complexShapeCoordinatesEnd = complexShapeCoordinatesStart + complexShapeCoordinates.amountOfVertices;
-
-			std::copy(complexShapeCoordinatesStart, complexShapeCoordinatesEnd, allCoordinates.vertices + destinationOffset);
-
-			destinationOffset += complexShapeCoordinates.amountOfVertices;
-		}
-
-		ASSERT(amountOfVertices == destinationOffset);
-
-		return allCoordinates;
-	}
-	*/
-
 	// glm::f32* transformersMatrixes;
-
-	// Old drawing
-	//void draw()
-	/* {
-		struct ShapeToDraw
-		{
-			ShapeID shapeID;
-			std::shared_ptr<complex2d::shape::ComplexShape> complexShape;
-			std::shared_ptr<primitive2d::Vertices> vertices;
-		};
-
-		this->clearScreen();
-
-		vector<ShapeToDraw> shapesToDraw;
-
-		// TODO [PERFORMANCE]: Cache amount of visible shapes.
-		shapesToDraw.reserve(this->complexShapes.size());
-
-		size_t totalAmountOfVertices = 0;
-		for (const auto& [complexShapeID, complexShape] : this->complexShapes)
-		{
-			if (complexShape->isVisible())
-			{
-				std::shared_ptr<primitive2d::Vertices> shapeVertices = complexShape->getVertices();
-
-				totalAmountOfVertices += shapeVertices->amount;
-
-				shapesToDraw.emplace_back(ShapeToDraw{ complexShapeID, complexShape, shapeVertices });
-			}
-		}
-
-		// TODO [PERFORMANCE]: Cache vertices.
-		primitive2d::Vertex* allVertices = new primitive2d::Vertex[totalAmountOfVertices];
-		{
-			size_t offset = 0;
-			for (const auto& [complexShapeID, complexShape, vertices] : shapesToDraw)
-			{
-				std::copy(vertices->vertices, vertices->vertices + vertices->amount, allVertices + offset);
-				offset += vertices->amount;
-			}
-		}
-
-		// TODO [PERFORMANCE]: Move to update.
-		myGLCall(glBufferData(GL_ARRAY_BUFFER,
-			sizeof(primitive2d::Vertex) * totalAmountOfVertices,
-			static_cast<const void*>(allVertices),
-			GL_STATIC_DRAW
-		));
-
-
-		/* Actual drawing. *_/
-		GLint offset = 0;
-		for (const auto& [complexShapeID, complexShape, vertices] : shapesToDraw)
-		{
-			const auto& colorRGB = complexShape->getColorRGB();
-			const float& alfa = 0.f;
-			this->shader.setGLUniform4f("u_colorRGBA", colorRGB.red, colorRGB.green, colorRGB.blue, alfa);
-
-			if (this->complexShapesTransformers.contains(complexShapeID))
-			{
-				const auto& transformers = this->complexShapesTransformers.at(complexShapeID);
-
-				size_t offset = 0;
-				for (size_t idx = 0; idx < transformers.size(); idx++)
-				{
-					const auto& transformationMatrix = transformers[idx]->calculateTransformationMatrix();
-					std::copy(transformationMatrix, transformationMatrix + sizeof(glm::f32) * 16, transformersMatrixes + offset);
-					offset += 16;
-				}
-
-				ASSERT(transformers.size() <= 4);
-
-				this->shader.setGLlUniformMatrix4fv("u_transformations", transformersMatrixes, (GLsizei)transformers.size());
-				this->shader.setGLlUniform1i("u_transformationsAmount", (const GLint)transformers.size());
-			}
-			else
-				this->shader.setGLlUniform1i("u_transformationsAmount", (const GLint)0);
-
-			myGLCall(glDrawArrays(GL_TRIANGLES,
-				(GLint)offset,  // Offset.
-				static_cast<GLsizei>(vertices->amount)
-			));
-
-			offset += vertices->amount;
-		}
-		delete[] allVertices;
-
-		myGLCall(glfwSwapBuffers(window));
-	}*/
 
 	// Copy shapes data to the GPU buffer. TODO [OPTIMIZATION]: Do it on update().
 	// Draw all shapes: one shape at the time.
@@ -429,61 +284,6 @@ public:
 		myGLCall(glVertexAttribPointer(kCoordinates, 3, GL_FLOAT, GL_FALSE, sizeof(Point3D), (void*)0));
 	}
 
-	/// @brief Add a circle to the scene.
-	/// @param amountOfTriangles 
-	/// @param radius 
-	/// @return id of circle
-	/*
-	int addCircle(const size_t amountOfTriangles, const float radius, const primitive2d::Point& position = { 0,0 })
-	{
-		std::shared_ptr<complex2d::shape::Circle> newCircle = std::make_shared<complex2d::shape::Circle>(amountOfTriangles, radius, position);
-
-		int circleID = static_cast<int>(complexShapes.size());
-
-		complexShapes[circleID] = newCircle;
-
-		return circleID;
-	}
-
-	int addTriangle(float sideLength, const primitive2d::Point& position, color::RGB color)
-	{
-		std::shared_ptr<complex2d::shape::Triangle> newTriangle = std::make_shared<complex2d::shape::Triangle>(sideLength, position, color);
-
-		int triangleID = static_cast<int>(complexShapes.size());
-
-		complexShapes[triangleID] = newTriangle;
-
-		return triangleID;
-	}
-
-	void updateCircle(int circleID, size_t amountOfTriangles = 0, float radius = -1, color::RGB color = { -1 })
-	{
-		ASSERT(circleID < this->complexShapes.size());
-
-		auto circle = static_cast<complex2d::shape::Circle*>(this->complexShapes[circleID].get());
-
-		if (color.red >= 0)
-			circle->updateCircle(color);
-
-
-		if (amountOfTriangles > 0)
-		{
-			if (radius >= 0)
-				circle->updateCircle(amountOfTriangles, radius);
-			else
-				circle->updateCircle(amountOfTriangles);
-		}
-
-		this->update();
-	}
-
-	void updateCircle(int circleID, color::RGB color = { -1 })
-	{
-		this->updateCircle(circleID, 0, -1, color);
-	}
-
-	*/
-
 	ShapeID addHexahedron(float sideLength, Point3D position = { 0.f, 0.f, 0.f }, color::RGBA color = color::kRedRGBA)
 	{
 		// TODO [OPTIMIZATION]: Swap to random id.
@@ -545,12 +345,6 @@ public:
 	}
 	*/
 	///
-
-	/*
-	auto getKeyboardCallbacks() const
-	{
-		return this->keyboardOnPressRepeatEvents;
-	}*/
 
 	~TheProgram()
 	{
