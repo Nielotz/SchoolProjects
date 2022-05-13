@@ -18,11 +18,6 @@
 #include "src/headers/transformation.h"
 #include "src/headers/model_view_projection.h"
 
-using std::cout;
-using std::endl;
-using std::string;
-using std::vector;
-
 
 namespace control
 {
@@ -33,12 +28,10 @@ namespace control
 
 class TheProgram
 {
-	typedef uint64_t ShapeID;
-	typedef drawable::shape3d::Shape Shape3D;
-	typedef drawable::primitive::Point3D Point3D;
-
 	GLFWwindow* window = nullptr;
 
+	typedef uint64_t ShapeID;
+	typedef drawable::shape3d::Shape Shape3D;
 	std::unordered_map<ShapeID, std::unique_ptr<Shape3D>> shapes;
 
 	typedef int KeyID;
@@ -58,32 +51,73 @@ class TheProgram
 	float lastStartFrameRenderTime = 0.f;
 
 	// Transformations.
-	// std::unordered_map<ShapeID, vector<transformation3d::Transformer*>> complexShapesTransformers;
-	///
+	typedef std::vector<std::shared_ptr<transformation3d::Transformer>> VectorOfTransformers;
+	std::unordered_map<ShapeID, VectorOfTransformers> shapesTransformers;
 
 	// glm::f32* transformersMatrixes;
 
-	// Copy shapes data to the GPU buffer. TODO [OPTIMIZATION]: Do it on update().
-	// Draw all shapes: one shape at the time.
+	typedef drawable::primitive::Point3D Point3D;
+
+	// TODO [REFACTORING]: Move to seperate somewhere.
+	class PerformanceAnalyzer
+	{
+	public:
+		float getAverageTimeToRender()
+		{
+			return renderTimeSum / float(kRenderTimeSampleSize);
+		}
+
+		float getAverageFPS()
+		{
+			return float(kRenderTimeSampleSize) / renderTimeSum;
+		}
+
+		void addRenderTime(float renderTime)
+		{
+			latestRenderTimeIdx++;
+
+			if (latestRenderTimeIdx >= kRenderTimeSampleSize)
+				latestRenderTimeIdx = 0;
+
+			renderTimeSum -= renderTimes[latestRenderTimeIdx];
+			renderTimeSum += renderTime;
+
+			renderTimes[latestRenderTimeIdx] = renderTime;
+		}
+	private:
+		const int kRenderTimeSampleSize = 1000;
+		float renderTimes[1000]{};
+		int latestRenderTimeIdx = 0;
+		float renderTimeSum = 0.000000000000001;
+
+
+	};
+
+	PerformanceAnalyzer performanceAnalyzer;
+
+	// Perfaps maybe dont ya think about refactoring THIS?
+	// 1. Copy shapes data to the GPU buffer. TODO [OPTIMIZATION]: Do it on update().
+	// 2. Draw all shapes: one shape at the time.
 	void draw()
 	{
-		// Prepare data to draw.
+		/// Prepare data to draw.
+
 		struct ShapeToDraw
 		{
 			const ShapeID shapeID;
 			const Shape3D* const& shape;
-			const vector<Point3D> points;
+			const std::vector<Point3D> points;
 		};
 
 		// TODO [PERFORMANCE]: Cache shapes and update in update().
-		vector<ShapeToDraw> shapesToDraw;
+		std::vector<ShapeToDraw> shapesToDraw;
 		shapesToDraw.reserve(this->shapes.size());
 
 		// Fill shapesToDraw and count total amount of vertices.
 		size_t totalAmountOfVertices = 0;
 		for (const auto& [shapeID, shape] : this->shapes)
 		{
-			const vector<Point3D>& shapeVertices = shape->getVertices();
+			const std::vector<Point3D>& shapeVertices = shape->getVertices();
 
 			totalAmountOfVertices += shapeVertices.size();
 
@@ -110,58 +144,43 @@ class TheProgram
 
 		this->clearScreen();
 
-		auto x = this->modelViewProjection.getMVP();
-		this->shader.setGLlUniformMat4f("u_MVP", x);
+		this->shader.setGLlUniformMat4f("u_MVP", this->modelViewProjection.getMVP());
 
 		// Actual drawing. 
-		GLint offset = 0;
+		GLint verticesOffset = 0;
 		for (const auto& [shapeID, shape, points] : shapesToDraw)
 		{
-			for (auto i = 0; i < points.size(); i += 3)
+			// Transformations.
+			glm::mat4 transformationMatrix(1.f);
+			if (this->shapesTransformers.contains(shapeID))
+				for (const auto& transformer : this->shapesTransformers.at(shapeID))
+					transformationMatrix *= transformer->calculateTransformationMatrix();
+
+			this->shader.setGLlUniformMat4f("u_transformation",
+				transformationMatrix);
+
+			// Draw triangle by triangle.
+			constexpr int kAmountOfVerticesInTriangles = 3;
+			for (auto i = 0; i < points.size(); i += kAmountOfVerticesInTriangles)
 			{
+				// Set test colors.
 				const color::RGBA& color = shape->getColor();
 				this->shader.setGLUniform4f("u_colorRGBA", color.red, color.green + i / 50.f, color.blue + i / 50.f, color.alfa);
-				// this->shader.setGLUniform4f("u_colorRGBA", 0.5, 0.5, 0.5, color.alfa);
-
-				// Transformations.
-				/*
-				if (this->complexShapesTransformers.contains(complexShapeID))
-				{
-					const auto& transformers = this->complexShapesTransformers.at(complexShapeID);
-
-					size_t offset = 0;
-					for (size_t idx = 0; idx < transformers.size(); idx++)
-					{
-						const auto& transformationMatrix = transformers[idx]->calculateTransformationMatrix();
-						std::copy(transformationMatrix, transformationMatrix + sizeof(glm::f32) * 16, transformersMatrixes + offset);
-						offset += 16;
-					}
-
-					ASSERT(transformers.size() <= 4);
-
-					this->shader.setGLlUniformMatrix4fv("u_transformations", transformersMatrixes, (GLsizei)transformers.size());
-					this->shader.setGLlUniform1i("u_transformationsAmount", (const GLint)transformers.size());
-				}
-				else
-					this->shader.setGLlUniform1i("u_transformationsAmount", (const GLint)0);
-				*/
 
 				myGLCall(glDrawArrays(GL_TRIANGLES,
-					(GLint)offset,  // Offset.
-					static_cast<GLsizei>(3)
+					(GLint)verticesOffset,  // Offset.
+					static_cast<GLsizei>(kAmountOfVerticesInTriangles)
 				));
-
-				offset += 3;
+				verticesOffset += kAmountOfVerticesInTriangles;
 			}
-
-			offset += GLint(points.size());
 		}
 
 		myGLCall(glfwSwapBuffers(window));
 
+		// Show on title fps count and time to render.
 		std::stringstream title;
-		const auto& renderTime = this->lastFrameRenderDeltaTime;
-		title << 1. / renderTime << " " << renderTime << "ms";
+		title << "FPS: " << performanceAnalyzer.getAverageFPS() << " "
+			<< performanceAnalyzer.getAverageTimeToRender() << "ms";
 		glfwSetWindowTitle(window, title.str().c_str());
 
 		delete[] allPoints;
@@ -207,8 +226,6 @@ class TheProgram
 			const float& yaw = float(xPos) * config::control::kMouseSensitivity;
 			const float& pitch = -float(yPos) * config::control::kMouseSensitivity;
 
-			logging::info("Moving yaw by", yaw);
-			logging::info("Moving pitch by", pitch);
 			this->modelViewProjection.view.moveLook(yaw, pitch);
 		};
 
@@ -258,6 +275,8 @@ public:
 
 		ASSERT(gladLoadGLLoader((GLADloadproc)glfwGetProcAddress));  // Failed to initialize GLAD.
 
+		myGLCall(glEnable(GL_DEPTH_TEST));
+
 		myGLCall(this->shader.createProgram());
 		myGLCall(glUseProgram(this->shader.getShaderProgramID()));
 
@@ -275,7 +294,6 @@ public:
 		glfwSetTime(0.0);
 		// this->transformersMatrixes = new glm::f32[4 * 16];
 	}
-	//void setComplexShapeActive(int shapeID)
 
 	void update()
 	{
@@ -308,43 +326,38 @@ public:
 				this->lastFrameRenderDeltaTime = now - this->lastStartFrameRenderTime;
 				this->lastStartFrameRenderTime = now;
 			}
+			performanceAnalyzer.addRenderTime(this->lastFrameRenderDeltaTime);
+
 			this->handleEvents();
 			this->draw();
 		}
 	}
 
 	// Transformations.
-	/*
-	void addTransformation(
-		const ShapeID complexShapeID,
+	void addTransformation(const ShapeID& shapeID,
 		const transformation3d::TransformatingType& tansformerType,
 		const Vector transformationVector)
 	{
 		using namespace transformation3d;
 
-		Transformer* transformer;
 		switch (tansformerType)
 		{
 		case TransformatingType::Slide:
-			transformer = new Slider(transformationVector);
+			shapesTransformers[shapeID].push_back(std::make_shared<Slider>(Slider(transformationVector)));
 			break;
 		case TransformatingType::ContinousSlide:
-			transformer = new continous::Slider(transformationVector);
+			shapesTransformers[shapeID].push_back(std::make_shared<continous::Slider>(continous::Slider(transformationVector)));
 			break;
 		case TransformatingType::ContinousScale:
-			transformer = new continous::Scaler(transformationVector);
+			shapesTransformers[shapeID].push_back(std::make_shared<continous::Scaler>(continous::Scaler(transformationVector)));
 			break;
 		case TransformatingType::ContinousRotate:
-			transformer = new continous::Rotator(transformationVector);
+			shapesTransformers[shapeID].push_back(std::make_shared<continous::Rotator>(continous::Rotator(transformationVector)));
 			break;
 		default:
 			throw;
 		}
-
-		this->complexShapesTransformers[complexShapeID].push_back(transformer);
 	}
-	*/
-	///
 
 	~TheProgram()
 	{
@@ -353,14 +366,6 @@ public:
 		myGLCall(glDeleteProgram(this->shader.getShaderProgramID()));
 
 		glfwTerminate();
-
-		// Transformations.
-		/*
-		for (auto& [complexShape, vectorOfTransformations] : this->complexShapesTransformers)
-			for (auto& transformation : vectorOfTransformations)
-				delete transformation;
-		*/
-		///
 	}
 };
 
@@ -384,9 +389,10 @@ int main()
 {
 	TheProgram program;
 	program.init();
-	glEnable(GL_DEPTH_TEST);
+
 	const float size = 0.2f;
-	program.addHexahedron(size);
+	const auto& hexahedronID = program.addHexahedron(size);
+	program.addTransformation(hexahedronID, transformation3d::TransformatingType::ContinousRotate, { 0, 1., 0 });
 
 	program.mainLoop();
 	return 0;

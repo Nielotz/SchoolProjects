@@ -22,7 +22,7 @@ namespace transformation3d
 	class Transformer
 	{
 	public:
-		virtual const glm::f32* calculateTransformationMatrix() const = 0;
+		virtual const glm::mat4 calculateTransformationMatrix() const = 0;
 
 	protected:
 		const glm::mat4& baseOneMatrix = glm::mat4{ 1.0f };
@@ -37,7 +37,7 @@ namespace transformation3d
 		glm::mat4 precalculatedMatrix;
 	public:
 		Slider(const Vector distanceToSlide);
-		const glm::f32* calculateTransformationMatrix() const override;
+		const glm::mat4 calculateTransformationMatrix() const override;
 	};
 
 	namespace continous
@@ -55,7 +55,7 @@ namespace transformation3d
 
 		public:
 			Slider(const Vector distanceToSlide);
-			const glm::f32* calculateTransformationMatrix() const override;
+			const glm::mat4 calculateTransformationMatrix() const override;
 		};
 
 		class Scaler : public Transformer
@@ -63,7 +63,7 @@ namespace transformation3d
 			const Vector scale;
 		public:
 			Scaler(const Vector scale);
-			const glm::f32* calculateTransformationMatrix() const override;
+			const glm::mat4 calculateTransformationMatrix() const override;
 		};
 
 		class Rotator : public Transformer
@@ -73,7 +73,7 @@ namespace transformation3d
 
 		public:
 			Rotator(const Vector rotationVector);
-			const glm::f32* calculateTransformationMatrix() const override;
+			const glm::mat4 calculateTransformationMatrix() const override;
 		};
 	}
 };
