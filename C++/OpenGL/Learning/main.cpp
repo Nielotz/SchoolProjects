@@ -93,9 +93,9 @@ class TheProgram
 		}
 	private:
 		const int kRenderTimeSampleSize = 1000;
-		float renderTimes[1000]{};
+		float renderTimes[1000]{1.};
 		int latestRenderTimeIdx = 0;
-		float renderTimeSum = 0.01;  // Avoid dividing by zero.
+		float renderTimeSum = 1.;  // Avoid dividing by zero.
 	};
 
 	PerformanceAnalyzer performanceAnalyzer;
@@ -348,7 +348,7 @@ public:
 		this->setCallbacks();
 		this->setEvents();
 
-		myGLCall(glfwSwapInterval(2));
+		myGLCall(glfwSwapInterval(0));
 
 		this->setVertexAttribPointers();
 
@@ -455,7 +455,7 @@ int main()
 	program.init();
 
 	const float hexahedronSide = 0.2f;
-	const auto& hexahedronID = program.addHexahedron(hexahedronSide);
+	const auto& hexahedronID = program.addHexahedron(hexahedronSide, {-hexahedronSide  / 2., -hexahedronSide / 2., hexahedronSide / 2.});
 	program.addTransformation(hexahedronID, transformation3d::TransformatingType::ContinousRotate, { 0, 1., 0 });
 	program.setTexture("res/textures/arrow_up.jpg", hexahedronID);
 
