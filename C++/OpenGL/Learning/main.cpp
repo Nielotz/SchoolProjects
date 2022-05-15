@@ -32,7 +32,19 @@ class TheProgram
 
 	typedef uint64_t ShapeID;
 	typedef drawable::shape3d::Shape Shape3D;
+
+	// TODO [PERFORMANCE]: Group shapes stuff (transformations, textures, etc.) in one place.
+
+	// Shapes.
 	std::unordered_map<ShapeID, std::unique_ptr<Shape3D>> shapes;
+
+	// Transformations.
+	typedef std::vector<std::shared_ptr<transformation3d::Transformer>> VectorOfTransformers;
+	std::unordered_map<ShapeID, VectorOfTransformers> shapesTransformers;
+
+	// Textures.
+	typedef MyGL::Texture2D Texture2D;
+	std::unordered_map<ShapeID, std::shared_ptr<Texture2D>> shapesTextures;
 
 	typedef int KeyID;
 	std::unordered_map<KeyID, std::function<void()>> keyboardOnPressRepeatEvents;
@@ -50,13 +62,8 @@ class TheProgram
 	// Time from glfwGetTime() received after render of a frame. In seconds.
 	float lastStartFrameRenderTime = 0.f;
 
-	// Transformations.
-	typedef std::vector<std::shared_ptr<transformation3d::Transformer>> VectorOfTransformers;
-	std::unordered_map<ShapeID, VectorOfTransformers> shapesTransformers;
-
-	// glm::f32* transformersMatrixes;
-
 	typedef drawable::primitive::Point3D Point3D;
+	typedef drawable::primitive::Vertice3D Vertice3D;
 
 	// TODO [REFACTORING]: Move to seperate somewhere.
 	class PerformanceAnalyzer
@@ -88,9 +95,7 @@ class TheProgram
 		const int kRenderTimeSampleSize = 1000;
 		float renderTimes[1000]{};
 		int latestRenderTimeIdx = 0;
-		float renderTimeSum = 0.000000000000001;
-
-
+		float renderTimeSum = 0.01;  // Avoid dividing by zero.
 	};
 
 	PerformanceAnalyzer performanceAnalyzer;
@@ -106,7 +111,7 @@ class TheProgram
 		{
 			const ShapeID shapeID;
 			const Shape3D* const& shape;
-			const std::vector<Point3D> points;
+			const std::vector<Vertice3D> vertices;
 		};
 
 		// TODO [PERFORMANCE]: Cache shapes and update in update().
@@ -117,7 +122,19 @@ class TheProgram
 		size_t totalAmountOfVertices = 0;
 		for (const auto& [shapeID, shape] : this->shapes)
 		{
-			const std::vector<Point3D>& shapeVertices = shape->getVertices();
+
+			// for (const auto& vertices : shape->getPoints())
+			// {
+			// 	std::cout << vertices.x << " " << vertices.y << " " << vertices.z << std::endl;
+			// }
+
+			// for (const auto& vertices : shape->getVertices())
+			// {
+			// 	//std::cout << vertices.coordinates.x << " " << vertices.coordinates.y << " " << vertices.coordinates.z << std::endl;
+			// 	std::cout << vertices.textureCoordinates.x << " " << vertices.textureCoordinates.y << std::endl;
+			// }
+
+			const std::vector<Vertice3D>& shapeVertices = shape->getVertices();
 
 			totalAmountOfVertices += shapeVertices.size();
 
@@ -125,20 +142,20 @@ class TheProgram
 		}
 
 		// TODO [PERFORMANCE]: Cache vertices.
-		Point3D* allPoints = new Point3D[totalAmountOfVertices];
+		Vertice3D* allVertices = new Vertice3D[totalAmountOfVertices];
 		{
 			size_t offset = 0;
-			for (const auto& [shapeID, shape, points] : shapesToDraw)
+			for (const auto& [shapeID, shape, vertices] : shapesToDraw)
 			{
-				std::copy(points.begin(), points.end(), allPoints + offset);
-				offset += points.size();
+				std::copy(vertices.begin(), vertices.end(), allVertices + offset);
+				offset += vertices.size();
 			}
 		}
 
 		// TODO [PERFORMANCE]: Move to update.
 		myGLCall(glBufferData(GL_ARRAY_BUFFER,
-			sizeof(Point3D) * totalAmountOfVertices,
-			static_cast<const void*>(allPoints),
+			sizeof(Vertice3D) * totalAmountOfVertices,
+			static_cast<const void*>(allVertices),
 			GL_STATIC_DRAW
 		));
 
@@ -148,8 +165,13 @@ class TheProgram
 
 		// Actual drawing. 
 		GLint verticesOffset = 0;
-		for (const auto& [shapeID, shape, points] : shapesToDraw)
+		for (const auto& [shapeID, shape, vertices] : shapesToDraw)
 		{
+			// Textures.
+			// TODO [FUNCTIONAL]: Add default texture.
+			ASSERT(this->shapesTextures.contains(shapeID));
+			this->shader.setGLlUniform1i("u_texture", this->shapesTextures.at(shapeID)->getSlot());
+
 			// Transformations.
 			glm::mat4 transformationMatrix(1.f);
 			if (this->shapesTransformers.contains(shapeID))
@@ -161,11 +183,11 @@ class TheProgram
 
 			// Draw triangle by triangle.
 			constexpr int kAmountOfVerticesInTriangles = 3;
-			for (auto i = 0; i < points.size(); i += kAmountOfVerticesInTriangles)
+			for (auto i = 0; i < vertices.size(); i += kAmountOfVerticesInTriangles)
 			{
 				// Set test colors.
-				const color::RGBA& color = shape->getColor();
-				this->shader.setGLUniform4f("u_colorRGBA", color.red, color.green + i / 50.f, color.blue + i / 50.f, color.alfa);
+				//const color::RGBA& color = shape->getColor();
+				// this->shader.setGLUniform4f("u_colorRGBA", color.red, color.green + i / 50.f, color.blue + i / 50.f, color.alfa);
 
 				myGLCall(glDrawArrays(GL_TRIANGLES,
 					(GLint)verticesOffset,  // Offset.
@@ -183,7 +205,7 @@ class TheProgram
 			<< performanceAnalyzer.getAverageTimeToRender() << "ms";
 		glfwSetWindowTitle(window, title.str().c_str());
 
-		delete[] allPoints;
+		delete[] allVertices;
 	}
 
 	void clearScreen()
@@ -259,6 +281,40 @@ class TheProgram
 			callbackWithName.second();
 	}
 
+	void setVertexAttribPointers()
+	{
+		// TODO [REFACTOR]: Add into seperate class to simplify usage. 
+		//		[PERFORMANCE]: Use IndexBuffer.
+
+		size_t idx = 0;
+
+		// Coordinates.
+		//const GLint kCoordsIdx = idx++;
+		const GLint kCoordsIdx = 0;
+		constexpr GLint kAmountOfCoords = 3;
+		myGLCall(glEnableVertexAttribArray(kCoordsIdx));
+		myGLCall(glVertexAttribPointer(
+			kCoordsIdx,                                   // index
+			kAmountOfCoords,	                          // size
+			GL_FLOAT,			                          // type
+			GL_FALSE,			                          // normalized
+			sizeof(Vertice3D),		                      // stride
+			(void*)(offsetof(Vertice3D, coordinates))));  // offset
+
+		// Texture coordinates.
+		//const GLint kTextureCoordsIdx = idx++;
+		const GLint kTextureCoordsIdx = 1;
+		constexpr GLint kAmountOfTextureCoords = 2;
+		myGLCall(glEnableVertexAttribArray(kTextureCoordsIdx));
+		myGLCall(glVertexAttribPointer(
+			kTextureCoordsIdx,
+			kAmountOfTextureCoords,
+			GL_FLOAT,
+			GL_FALSE,
+			sizeof(Vertice3D),
+			(void*)(offsetof(Vertice3D, textureCoordinates))));
+	}
+
 public:
 	void init()
 	{
@@ -276,6 +332,9 @@ public:
 		ASSERT(gladLoadGLLoader((GLADloadproc)glfwGetProcAddress));  // Failed to initialize GLAD.
 
 		myGLCall(glEnable(GL_DEPTH_TEST));
+		myGLCall(glFrontFace(GL_CCW));
+		myGLCall(glEnable(GL_CULL_FACE));
+		myGLCall(glCullFace(GL_BACK));
 
 		myGLCall(this->shader.createProgram());
 		myGLCall(glUseProgram(this->shader.getShaderProgramID()));
@@ -289,7 +348,9 @@ public:
 		this->setCallbacks();
 		this->setEvents();
 
-		myGLCall(glfwSwapInterval(0));
+		myGLCall(glfwSwapInterval(2));
+
+		this->setVertexAttribPointers();
 
 		glfwSetTime(0.0);
 		// this->transformersMatrixes = new glm::f32[4 * 16];
@@ -297,9 +358,7 @@ public:
 
 	void update()
 	{
-		constexpr GLint kCoordinates = 0;
-		myGLCall(glEnableVertexAttribArray(kCoordinates));
-		myGLCall(glVertexAttribPointer(kCoordinates, 3, GL_FLOAT, GL_FALSE, sizeof(Point3D), (void*)0));
+
 	}
 
 	ShapeID addHexahedron(float sideLength, Point3D position = { 0.f, 0.f, 0.f }, color::RGBA color = color::kRedRGBA)
@@ -333,7 +392,6 @@ public:
 		}
 	}
 
-	// Transformations.
 	void addTransformation(const ShapeID& shapeID,
 		const transformation3d::TransformatingType& tansformerType,
 		const Vector transformationVector)
@@ -357,6 +415,12 @@ public:
 		default:
 			throw;
 		}
+	}
+
+	void setTexture(const std::string& path, ShapeID shapeID)
+	{
+		this->shapesTextures[shapeID] = std::make_shared<Texture2D>(path);
+		const auto& x = this->shapesTextures[shapeID];
 	}
 
 	~TheProgram()
@@ -390,9 +454,10 @@ int main()
 	TheProgram program;
 	program.init();
 
-	const float size = 0.2f;
-	const auto& hexahedronID = program.addHexahedron(size);
+	const float hexahedronSide = 0.2f;
+	const auto& hexahedronID = program.addHexahedron(hexahedronSide);
 	program.addTransformation(hexahedronID, transformation3d::TransformatingType::ContinousRotate, { 0, 1., 0 });
+	program.setTexture("res/textures/arrow_up.jpg", hexahedronID);
 
 	program.mainLoop();
 	return 0;
