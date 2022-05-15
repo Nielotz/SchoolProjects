@@ -21,7 +21,7 @@ namespace complex2d
 			color::RGB colorRGB;
 
 		public:
-			virtual std::shared_ptr<primitive2d::Vertices> getVertices() = 0;
+			virtual std::shared_ptr<primitive2d::Vertices> getPoints() = 0;
 			color::RGB getColorRGB() const;
 			void setVisibility(const bool isVisible);
 			bool isVisible() const;
@@ -31,7 +31,7 @@ namespace complex2d
 		{
 			float sideLength;
 		public:
-			std::shared_ptr<primitive2d::Vertices> getVertices() override;
+			std::shared_ptr<primitive2d::Vertices> getPoints() override;
 			Triangle(float sideLength, primitive2d::Point position, color::RGB colorRGB);
 
 		};
@@ -43,7 +43,7 @@ namespace complex2d
 			const std::shared_ptr<primitive2d::shape::Triangles> convertToTriangles() const;
 			
 		public:
-			std::shared_ptr<primitive2d::Vertices> getVertices() override;
+			std::shared_ptr<primitive2d::Vertices> getPoints() override;
 
 			float getRadius() const;
 

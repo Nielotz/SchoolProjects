@@ -106,7 +106,7 @@ namespace complex2d::shape
 	}
 	*_/
 
-	std::shared_ptr<primitive2d::Vertices> Circle::getVertices()
+	std::shared_ptr<primitive2d::Vertices> Circle::getPoints()
 	{
 		using namespace primitive2d::shape;
 
@@ -201,7 +201,7 @@ namespace complex2d::shape
 		this->colorRGB = color;
 	}
 
-	std::shared_ptr<primitive2d::Vertices> Triangle::getVertices()
+	std::shared_ptr<primitive2d::Vertices> Triangle::getPoints()
 	{
 		using primitive2d::Vertices;
 		std::shared_ptr<Vertices> vertices(new Vertices(3));

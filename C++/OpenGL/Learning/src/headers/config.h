@@ -14,13 +14,12 @@ namespace config
 
 	namespace path
 	{
-		// const std::string shaders = "src/mygl/shader/transforming_triangles.shader";
-		const std::string shaders = "src/mygl/shader/my_first_3d!.shader";
+		const std::string shaders = "src/mygl/shader/rotating_textured_cube.shader";
 	}
 
 	namespace control
 	{
-		constexpr float kMoveSpeed = 0.5f;  // Units per second. 
+		constexpr float kMoveSpeed = 1.f;  // Units per second. 
 		constexpr float kMouseSensitivity = 0.1f;  // Sth per sth else
 	}
 }
