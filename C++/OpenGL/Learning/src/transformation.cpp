@@ -68,7 +68,7 @@ transformation3d::continous::Rotator::Rotator(const Vector rotationVector)
 
 const glm::mat4 transformation3d::continous::Rotator::calculateTransformationMatrix() const
 {
-	return glm::rotate(glm::mat4(1.0f),
+	return glm::rotate(this->baseOneMatrix,
 		glm::radians(360.f * this->getSinusOfTime()),
 		glm::vec3(rotationVector.x, rotationVector.y, rotationVector.z)
 	);
