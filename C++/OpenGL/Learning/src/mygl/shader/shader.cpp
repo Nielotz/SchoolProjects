@@ -172,3 +172,10 @@ void MyGLShader::setGLlUniform1i(const GLchar* uniformName, const GLint value)
 	ASSERT(u_ID != -1);  // Uniform not found.
 	myGLCall(glUniform1i(u_ID, value));
 }
+
+void MyGLShader::setGLlUniform1ui(const GLchar* uniformName, const GLuint value)
+{
+	myGLCall(auto u_ID = glGetUniformLocation(this->shaderProgramID, uniformName));
+	ASSERT(u_ID != -1);  // Uniform not found.
+	myGLCall(glUniform1ui(u_ID, value));
+}
