@@ -3,48 +3,66 @@
 #include <iostream>
 
 #include "../headers/mygl/texture.h"
+#include "../headers/mygl/debug/debug.h"
 
-MyGLTexture::MyGLTexture(const std::string& path)
-	:path(path)
+namespace MyGL
 {
-	stbi_set_flip_vertically_on_load(true);
+	Texture::Texture(const std::string& path)
+		: path(path)
+	{}
 
-	int channelsInFile;
-	auto imageData = stbi_load(path.c_str(), &this->width, &this->height, &channelsInFile, 3);
+	int Texture::getSlot() const
+	{
+		return this->slot;
+	}
 
-	glGenTextures(1, &this->textureID);
-	glBindTexture(GL_TEXTURE_2D, this->textureID);
+	Texture2D::Texture2D(const std::string& path) : Texture(path)
+	{
+		stbi_set_flip_vertically_on_load(true);
 
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+		int amountOfchannelsInFile;
+		const int kAmountOfDesiredChannels = 4;  // RGBA
+		auto imageData = stbi_load(path.c_str(),
+			&this->width, &this->height,
+			&amountOfchannelsInFile, kAmountOfDesiredChannels);
 
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, this->width, this->height, 0, GL_RGB, GL_UNSIGNED_BYTE, imageData);
-	glBindTexture(GL_TEXTURE_2D, 0);
+		myGLCall(glGenTextures(1, &this->textureID_GL));  // Generate storage for one texture.
+		myGLCall(glBindTexture(GL_TEXTURE_2D, this->textureID_GL));
 
-	if (imageData != nullptr)
-		stbi_image_free(imageData);
-}
+		myGLCall(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR));
+		myGLCall(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR));
+		myGLCall(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE));
+		myGLCall(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE));
 
-GLuint MyGLTexture::getTextureID() const
-{
-	return this->textureID;
-}
+		myGLCall(glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, imageData));
 
-void MyGLTexture::bind(size_t slot)
-{
-	glActiveTexture(GL_TEXTURE0 + slot);
-	glBindTexture(GL_TEXTURE_2D, this->textureID);
-}
+		this->bind();
 
-void MyGLTexture::unbind()
-{
-	glBindTexture(GL_TEXTURE_2D, 0);
-}
+		if (imageData != nullptr)
+		    stbi_image_free(imageData);
+	}
 
-MyGLTexture::~MyGLTexture()
-{
-	this->unbind();
-	glDeleteTextures(1, &this->textureID);
+	GLuint Texture2D::getTextureID() const
+	{
+		return this->textureID_GL;
+	}
+
+	void Texture2D::bind(unsigned int slot)
+	{
+		this->slot = slot;
+		myGLCall(glActiveTexture(GL_TEXTURE0 + slot));
+		myGLCall(glBindTexture(GL_TEXTURE_2D, this->textureID_GL));
+	}
+
+	void Texture2D::unbind()
+	{
+		myGLCall(glActiveTexture(GL_TEXTURE0 + this->slot));
+		myGLCall(glBindTexture(GL_TEXTURE_2D, 0));
+	}
+
+	Texture2D::~Texture2D()
+	{
+		//myGLCall(glDeleteTextures(1, &this->textureID_GL));
+	}
+
 }
