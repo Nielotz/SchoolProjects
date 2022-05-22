@@ -5,13 +5,8 @@
 
 #include "../../../src/headers/mygl/shader/shader.h"
 #include "../../../src/headers/mygl/debug/debug.h"
-#include "../../headers/config.h"
+//#include "../../headers/config.h"
 #include "../../headers/mygl/debug/debug.h"
-
-GLuint MyGLShader::getShaderProgramID()
-{
-	return this->shaderProgramID;
-}
 
 const std::vector<std::string> MyGLShader::ShaderTypeName =
 {
@@ -38,6 +33,11 @@ std::string MyGLShader::checkProgramStatus(const GLuint& id, const GLenum& opera
 	}
 
 	return "";
+}
+
+GLuint MyGLShader::getShaderProgramID()
+{
+	return this->shaderProgramID;
 }
 
 std::string MyGLShader::checkShaderStatus(const GLuint& id, const GLenum& operationType)
@@ -113,11 +113,10 @@ std::unordered_map<MyGLShader::ShaderType, std::string> MyGLShader::parseFromFil
 	return shaderCode;
 }
 
-GLuint MyGLShader::createProgram()
+GLuint MyGLShader::createProgramFromFile(const std::string& path)
 {
-	const std::string& shaderPath = config::path::shaders;
-	logging::info("Creating shader program", "Parsing shader file " + shaderPath + "...");
-	auto parsedShaders = MyGLShader::parseFromFile(shaderPath.c_str());
+	logging::info("Creating shader program", "Parsing shader file " + path + "...");
+	auto parsedShaders = MyGLShader::parseFromFile(path.c_str());
 
 	if (parsedShaders.contains(ShaderType::None))
 	{
@@ -152,6 +151,13 @@ void MyGLShader::setGLUniform4f(const GLchar* uniformName, GLfloat v0, GLfloat v
 	myGLCall(auto u_ID = glGetUniformLocation(this->shaderProgramID, uniformName));
 	ASSERT(u_ID != -1);  // Uniform not found.
 	myGLCall(glUniform4f(u_ID, v0, v1, v2, v3));
+}
+
+void MyGLShader::setGLUniform1f(const GLchar* uniformName, GLfloat v0)
+{
+	myGLCall(auto u_ID = glGetUniformLocation(this->shaderProgramID, uniformName));
+	ASSERT(u_ID != -1);  // Uniform not found.
+	myGLCall(glUniform1f(u_ID, v0));
 }
 
 void MyGLShader::setGLlUniformMatrix4fv(const GLchar* uniformName, const GLfloat* value, GLsizei count, GLboolean transpose)
