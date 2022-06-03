@@ -25,7 +25,7 @@ const glm::mat4 transformation3d::Slider::calculateTransformationMatrix() const
 
 inline float transformation3d::continous::Transformer::getSinusOfTime() const
 {
-	return sinf(float(glfwGetTime()));
+	return sinf(float(glfwGetTime() / 10.));
 }
 
 transformation3d::continous::Slider::Slider(const Vector distanceToSlide)
@@ -48,6 +48,24 @@ const glm::mat4 transformation3d::continous::Slider::calculateTransformationMatr
 transformation3d::continous::Scaler::Scaler(const Vector scale)
 	:scale(scale)
 {}
+
+transformation3d::Scaler::Scaler(const Vector scale)
+	:scale(scale)
+{
+	this->precalculatedMatrix = glm::scale(
+		this->baseOneMatrix,
+		glm::vec3(
+			scale.x,
+			scale.y,
+			scale.z
+		)
+	);
+}
+
+const glm::mat4 transformation3d::Scaler::calculateTransformationMatrix() const
+{
+	return this->precalculatedMatrix;
+}
 
 const glm::mat4 transformation3d::continous::Scaler::calculateTransformationMatrix() const
 {

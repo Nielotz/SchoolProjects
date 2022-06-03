@@ -36,8 +36,6 @@ namespace MyGL
 
 		myGLCall(glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, imageData));
 
-		this->bind();
-
 		if (imageData != nullptr)
 		    stbi_image_free(imageData);
 	}

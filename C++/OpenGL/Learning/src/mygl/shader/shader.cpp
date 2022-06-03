@@ -4,14 +4,8 @@
 #include <string>
 
 #include "../../../src/headers/mygl/shader/shader.h"
-#include "../../../src/headers/mygl/debug/debug.h"
-#include "../../headers/config.h"
+//#include "../../headers/config.h"
 #include "../../headers/mygl/debug/debug.h"
-
-GLuint MyGLShader::getShaderProgramID()
-{
-	return this->shaderProgramID;
-}
 
 const std::vector<std::string> MyGLShader::ShaderTypeName =
 {
@@ -38,6 +32,11 @@ std::string MyGLShader::checkProgramStatus(const GLuint& id, const GLenum& opera
 	}
 
 	return "";
+}
+
+GLuint MyGLShader::getShaderProgramID()
+{
+	return this->shaderProgramID;
 }
 
 std::string MyGLShader::checkShaderStatus(const GLuint& id, const GLenum& operationType)
@@ -113,11 +112,10 @@ std::unordered_map<MyGLShader::ShaderType, std::string> MyGLShader::parseFromFil
 	return shaderCode;
 }
 
-GLuint MyGLShader::createProgram()
+GLuint MyGLShader::createProgramFromFile(const std::string& path)
 {
-	const std::string& shaderPath = config::path::shaders;
-	logging::info("Creating shader program", "Parsing shader file " + shaderPath + "...");
-	auto parsedShaders = MyGLShader::parseFromFile(shaderPath.c_str());
+	logging::info("Creating shader program", "Parsing shader file " + path + "...");
+	auto parsedShaders = MyGLShader::parseFromFile(path.c_str());
 
 	if (parsedShaders.contains(ShaderType::None))
 	{
@@ -147,17 +145,63 @@ GLuint MyGLShader::createProgram()
 	return this->shaderProgramID;
 }
 
+void MyGLShader::setGLUniform3f(const GLchar* uniformName, GLfloat v0, GLfloat v1, GLfloat v2)
+{
+	myGLCall(auto u_ID = glGetUniformLocation(this->shaderProgramID, uniformName));
+
+	const auto& log_warning = [uniformName]() {logging::warning("Cannot find uniform", uniformName); };
+	ASSERTC(u_ID != -1, log_warning);  // Uniform not found.
+
+	myGLCall(glUniform3f(u_ID, v0, v1, v2));
+}
+
+void MyGLShader::setGLUniform3f(const GLchar* uniformName, drawable::primitive::Point3D position)
+{
+	this->setGLUniform3f(uniformName, position.x, position.y, position.z);
+}
+
+void MyGLShader::setGLUniform3f(const GLchar* uniformName, color::RGB color)
+{
+	this->setGLUniform3f(uniformName, color.red, color.green, color.blue);
+}
+
+void MyGLShader::setGLUniform3f(const GLchar* uniformName, glm::vec3 vec)
+{
+	this->setGLUniform3f(uniformName, vec.x, vec.y, vec.z);
+}
+
 void MyGLShader::setGLUniform4f(const GLchar* uniformName, GLfloat v0, GLfloat v1, GLfloat v2, GLfloat v3)
 {
 	myGLCall(auto u_ID = glGetUniformLocation(this->shaderProgramID, uniformName));
-	ASSERT(u_ID != -1);  // Uniform not found.
+
+	const auto& log_warning = [uniformName]() {logging::warning("Cannot find uniform", uniformName); };
+	ASSERTC(u_ID != -1, log_warning);  // Uniform not found.
+	
+
 	myGLCall(glUniform4f(u_ID, v0, v1, v2, v3));
+}
+
+void MyGLShader::setGLUniform4f(const GLchar* uniformName, color::RGBA color)
+{
+	this->setGLUniform4f(uniformName, color.red, color.green, color.blue, color.alfa);
+}
+
+void MyGLShader::setGLUniform4f(const GLchar* uniformName, color::RGB color)
+{
+	this->setGLUniform4f(uniformName, color.red, color.green, color.blue, 1.);
+}
+
+void MyGLShader::setGLUniform1f(const GLchar* uniformName, GLfloat v0)
+{
+	myGLCall(auto u_ID = glGetUniformLocation(this->shaderProgramID, uniformName));
+	// ASSERT(u_ID != -1);  // Uniform not found.
+	myGLCall(glUniform1f(u_ID, v0));
 }
 
 void MyGLShader::setGLlUniformMatrix4fv(const GLchar* uniformName, const GLfloat* value, GLsizei count, GLboolean transpose)
 {
 	myGLCall(auto u_ID = glGetUniformLocation(this->shaderProgramID, uniformName));
-	ASSERT(u_ID != -1);  // Uniform not found.
+	// ASSERT(u_ID != -1);  // Uniform not found.
 	myGLCall(glUniformMatrix4fv(u_ID, count, transpose, value));
 }
 
@@ -169,7 +213,7 @@ void MyGLShader::setGLlUniformMat4f(const GLchar* uniformName, const glm::mat4& 
 void MyGLShader::setGLlUniform1i(const GLchar* uniformName, const GLint value)
 {
 	myGLCall(auto u_ID = glGetUniformLocation(this->shaderProgramID, uniformName));
-	ASSERT(u_ID != -1);  // Uniform not found.
+	// ASSERT(u_ID != -1);  // Uniform not found.
 	myGLCall(glUniform1i(u_ID, value));
 }
 

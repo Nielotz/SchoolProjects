@@ -12,11 +12,6 @@ namespace config
 
 	const std::string kWindowName = "";
 
-	namespace path
-	{
-		const std::string shaders = "src/mygl/shader/rotating_textured_cube.shader";
-	}
-
 	namespace control
 	{
 		constexpr float kMoveSpeed = 1.f;  // Units per second. 

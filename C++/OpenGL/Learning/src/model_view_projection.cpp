@@ -62,6 +62,11 @@ glm::mat4 MVP::View::getMatrix() const
 		this->up);
 }
 
+glm::vec3 MVP::View::getPosition() const
+{
+	return this->lookingFrom;
+}
+
 glm::mat4 MVP::getMVP() const
 {
 	return this->projection_ * this->view.getMatrix() * this->model_;
