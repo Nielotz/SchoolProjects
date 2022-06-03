@@ -12,6 +12,7 @@ private:
 	{
 	public:
 		glm::mat4 getMatrix() const;
+		glm::vec3 getPosition() const;
 
 		void moveUp(const float& moveDistance);
 		void moveDown(const float& moveDistance);
