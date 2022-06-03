@@ -17,7 +17,7 @@ namespace color
         float red = 0.f;
         float green = 1.f;
         float blue = 0.f;
-        float alfa = 0.f;
+        float alfa = 1.f;
 
         RGBA operator+(const RGBA& other) const;
     };
@@ -27,4 +27,5 @@ namespace color
     const RGBA kBlueRGBA = { 0.f, 0.f, 1.f };
     const RGBA kYellowRGBA = kRedRGBA + kGreenRGBA;
     const RGBA kPurpleRGBA = kRedRGBA + kBlueRGBA;
+    const RGBA kWhiteRGBA = kRedRGBA + kGreenRGBA + kBlueRGBA;
 }
