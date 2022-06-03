@@ -30,10 +30,18 @@ namespace drawable
 			// TODO [EVERYTHING]: Find better way to apply textures.
 			virtual std::vector<Vertice3D> getVertices() const = 0;
 			color::RGBA getColor() const;
+			float getSpecularStrength() const;
+
+			virtual Point3D getCenter() const;
+
 
 		protected:
+			/// <summary>
+			/// Position of front-left-bottom point.
+			/// </summary>
 			Point3D position;
 			color::RGBA color;
+			float specularStrength;
 		};
 
 		class Hexahedron : public Shape
@@ -53,7 +61,10 @@ namespace drawable
 			/// <returns>vector of vertices</returns>
 			std::vector<Vertice3D> getVertices() const override;
 
-			Hexahedron(float sideLength, Point3D position = { 0.f, 0.f, 0.f }, color::RGBA color = color::kRedRGBA);
+			Point3D getCenter() const override;
+
+			Hexahedron(float sideLength, Point3D position = { 0.f, 0.f, 0.f }, color::RGBA color = color::kRedRGBA, float specularStrength = 0.5f);
+
 		private:
 			float sideLength;
 		};
@@ -68,7 +79,7 @@ namespace drawable
 			LightSource3D(float luminosity);
 		};
 
-		class LightSourceHexahedron : public shape3d::Hexahedron, LightSource3D
+		class LightSourceHexahedron : public LightSource3D, public shape3d::Hexahedron
 		{
 		public:
 			LightSourceHexahedron(

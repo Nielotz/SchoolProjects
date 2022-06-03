@@ -102,16 +102,38 @@ namespace drawable
 			return vertices;
 		}
 
-		Hexahedron::Hexahedron(float sideLength, Point3D position, color::RGBA color)
+		Point3D Hexahedron::getCenter() const
+		{
+			const float& halfOfSide = this->sideLength / 2.;
+			return Point3D(this->position.x - halfOfSide,
+				this->position.y - halfOfSide,
+				this->position.z + halfOfSide);
+		}
+
+		Hexahedron::Hexahedron(float sideLength, Point3D position, color::RGBA color, float specularStrength)
 		{
 			this->sideLength = sideLength;
-			this->position = position;
 			this->color = color;
+			this->position = position;
+			this->specularStrength = specularStrength;
 		}
 
 		color::RGBA Shape::getColor() const
 		{
 			return this->color;
+		}
+
+		float Shape::getSpecularStrength() const
+		{
+			return this->specularStrength;
+		}
+
+		// TODO [FIX]: center is not a center
+		Point3D Shape::getCenter() const
+		{
+			return Point3D(this->position.x,
+				this->position.y,
+				this->position.z);
 		}
 	}
 	namespace lighting3d
@@ -120,9 +142,8 @@ namespace drawable
 		{}
 
 		LightSourceHexahedron::LightSourceHexahedron(float sideLength, Point3D position, color::RGBA color, float luminosity)
-		: shape3d::Hexahedron(sideLength, position, color), 
+			: shape3d::Hexahedron(sideLength, position, color),
 			LightSource3D(luminosity)
-		{
-		};
+		{};
 	}
 }
