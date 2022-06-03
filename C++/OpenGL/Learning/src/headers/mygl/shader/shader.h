@@ -1,4 +1,6 @@
 #pragma once
+#include "../../color.h"
+#include "../../drawable/primitive.h"
 
 #include <glad/glad.h>
 #include <iostream>
@@ -14,14 +16,22 @@ public:
 	GLuint getShaderProgramID();
 
 	GLuint createProgramFromFile(const std::string& path);
-	void setGLUniform4f(const GLchar* uniformName, GLfloat v0, GLfloat v1, GLfloat v2, GLfloat v3);
+
 	void setGLUniform1f(const GLchar* uniformName, GLfloat v0);
+	void setGLlUniform1i(const GLchar* uniformName, const GLint value);
+	void setGLlUniform1ui(const GLchar* uniformName, const GLuint value);
+
+	void setGLUniform3f(const GLchar* uniformName, GLfloat v0, GLfloat v1, GLfloat v2);
+	void setGLUniform3f(const GLchar* uniformName, drawable::primitive::Point3D);
+	void setGLUniform3f(const GLchar* uniformName, color::RGB color);
+	void setGLUniform3f(const GLchar* uniformName, glm::vec3 vec);
+
+	void setGLUniform4f(const GLchar* uniformName, GLfloat v0, GLfloat v1, GLfloat v2, GLfloat v3);
+	void setGLUniform4f(const GLchar* uniformName, color::RGBA color);
+	void setGLUniform4f(const GLchar* uniformName, color::RGB color);
 
 	void setGLlUniformMatrix4fv(const GLchar* uniformName, const GLfloat* value, GLsizei count = 1, GLboolean transpose = GL_FALSE);
 	void setGLlUniformMat4f(const GLchar* uniformName, const glm::mat4& mat, GLsizei count = 1, GLboolean transpose = GL_FALSE);
-
-	void setGLlUniform1i(const GLchar* uniformName, const GLint value);
-	void setGLlUniform1ui(const GLchar* uniformName, const GLuint value);
 
 private:
 	GLuint shaderProgramID;
