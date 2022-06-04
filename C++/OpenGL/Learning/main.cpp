@@ -746,26 +746,26 @@ int main()
 	// The Cube.
 	const float hexahedronSide = 0.2f;
 	// const auto& hexahedronID = program.addShapeFromOBJFile("res/obj_files/sample_obj.txt");
-	//const auto& hexahedronID = program.addShapeFromOBJFile("res/obj_files/lisek.obj");
-	const auto& hexahedronID = program.addHexahedron(hexahedronSide,
-		{ -hexahedronSide / 2., -hexahedronSide / 2., hexahedronSide / 2. }
-	);
-	program.addTransformation(hexahedronID, ContinousRotate3D, { 0, 1., 0 });
-	program.assignTexture(textureArrowUPID, hexahedronID);
+	// const auto& hexahedronID = program.addHexahedron(hexahedronSide,
+	// 	{ -hexahedronSide / 2., -hexahedronSide / 2., hexahedronSide / 2. }
+	// );
+	// program.addTransformation(hexahedronID, ContinousRotate3D, { 0, 1., 0 });
+	// program.assignTexture(textureArrowUPID, hexahedronID);
 
 	// Light source.
 	const float lightSourceHexahedronSide = 0.002f;
 	const float lightSourceLuminosity = 1.0f;
 	const auto& lightSourceHexahedronID = program.addLightSourceHexahedron(
 		lightSourceHexahedronSide,
-		{ -lightSourceHexahedronSide / 2. , -lightSourceHexahedronSide / 2., lightSourceHexahedronSide * 1000 },
+		{ -lightSourceHexahedronSide / 2. , -lightSourceHexahedronSide / 2., lightSourceHexahedronSide * 500 },
 		color::kWhiteRGBA,
 		lightSourceLuminosity);  // Luminosity.
-	program.addTransformation(lightSourceHexahedronID, ContinousSlide3D, { 0, 0.15f, 0 });
+	program.addTransformation(lightSourceHexahedronID, ContinousSlide3D, { 0, 1.f, 0 });
 
-	const auto& lisek = program.addShapeFromOBJFile("res/obj_files/lisek.obj");
-	program.assignTexture(lisek, hexahedronID);
-	program.addTransformation(lisek, Scale3D, { 0.01f, 0.01f, 0.01f });
+	const auto& lisekID = program.addShapeFromOBJFile("res/obj_files/lisek.obj");
+	program.assignTexture(lisekID, textureArrowUPID);
+	program.addTransformation(lisekID, Scale3D, { 0.01f, 0.01f, 0.01f });
+	program.addTransformation(lisekID, ContinousRotate3D, { 0.f, 1.f, 0.f });
 
 	program.mainLoop();
 	return 0;
