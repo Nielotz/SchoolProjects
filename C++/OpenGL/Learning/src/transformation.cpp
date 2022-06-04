@@ -25,7 +25,7 @@ const glm::mat4 transformation3d::Slider::calculateTransformationMatrix() const
 
 inline float transformation3d::continous::Transformer::getSinusOfTime() const
 {
-	return sinf(float(glfwGetTime() / 10.));
+	return sinf(float(glfwGetTime() / 1.));
 }
 
 transformation3d::continous::Slider::Slider(const Vector distanceToSlide)
