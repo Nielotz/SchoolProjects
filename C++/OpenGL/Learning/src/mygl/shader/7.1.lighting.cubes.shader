@@ -5,10 +5,11 @@ layout(location = 1) in vec2 texturePosition;
 
 uniform mat4 u_transformation;
 uniform mat4 u_MVP;
+uniform vec3 u_normal;
 
 out vec2 v_texturePosition;
 out vec3 v_fragmentPosition;
-
+out vec3 v_normal;
 void main()
 {
 	gl_Position = u_MVP * u_transformation * vertexPosition;
@@ -18,6 +19,8 @@ void main()
 	v_fragmentPosition = vertexAfterTransformation.xyz;
 	
 	v_texturePosition = texturePosition;
+	vec4 normal = u_transformation * vec4(u_normal, 1.);
+	v_normal = normal.xyz;
 };
 
 
@@ -29,7 +32,7 @@ in vec2 v_texturePosition;
 in vec3 v_fragmentPosition;
 
 // Vertex data.
-uniform vec3 u_normal;
+in vec3 v_normal;
 
 // Texture.
 uniform sampler2D u_texture;
@@ -78,7 +81,7 @@ float Light_calculateSpecularCoefficients(in vec3 normalNormalized, in vec3 ligh
 
 void applyLightning(inout vec4 color)
 {
-	vec3 normalNormalized = normalize(u_normal);
+	vec3 normalNormalized = normalize(v_normal);
 	vec3 lightDirectionNormalized = normalize(u_lightPosition - v_fragmentPosition);
 
 	float ambientCoefficient = u_ambientLightStrength;
