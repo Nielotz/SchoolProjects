@@ -21,14 +21,30 @@ namespace drawable
 		public:
 			/// <summary>
 			/// Generate vector of points. 
-			/// First vertice have to start at left bottom corner.
-			/// Points have to be provided in counter-clockwise order.
+			/// First point starts at left bottom corner.
+			/// Points are returned in counter-clockwise order.
 			/// </summary>
 			/// <returns>vector of points</returns>
 			virtual std::vector<Point3D> getPoints() const = 0;
 
+			/// <summary>
+			/// Generate vector of vectors. 
+			/// First vertice starts at left bottom corner.
+			/// Vectors are returned in counter-clockwise order.
+			/// </summary>
+			/// <returns>vector of vectors</returns>
 			// TODO [EVERYTHING]: Find better way to apply textures.
 			virtual std::vector<Vertice3D> getVertices() const = 0;
+
+			/// <summary>
+			/// Generate vector of vectors with normals. 
+			/// First vertice starts at left bottom corner.
+			/// Vectors are returned in counter-clockwise order.
+			/// </summary>
+			/// <returns>vector of vectors</returns>
+			// TODO [EVERYTHING]: Find better way to apply textures
+			virtual std::pair<std::vector<Vertice3D>, std::vector<Point3D>> getVerticesWithNormals() const = 0;
+
 			color::RGBA getColor() const;
 			float getSpecularStrength() const;
 
@@ -61,12 +77,24 @@ namespace drawable
 			/// <returns>vector of vertices</returns>
 			std::vector<Vertice3D> getVertices() const override;
 
+			std::pair<std::vector<Vertice3D>, std::vector<Point3D>> getVerticesWithNormals() const override;
+
 			Point3D getCenter() const override;
 
 			Hexahedron(float sideLength, Point3D position = { 0.f, 0.f, 0.f }, color::RGBA color = color::kRedRGBA, float specularStrength = 0.5f);
 
 		private:
 			float sideLength;
+
+			struct Face
+			{
+				const Point3D rightTop;
+				const Point3D leftTop;
+				const Point3D leftDown;
+				const Point3D rightDown;
+				Point3D calculateNormal() const;
+			};
+			std::vector<Face> getFaces() const;
 		};
 	}
 

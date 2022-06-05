@@ -17,6 +17,7 @@ namespace obj_loader
 		std::vector<Point3D> getPoints() const override;
 
 		std::vector<Vertice3D> getVertices() const override;
+		std::pair<std::vector<Vertice3D>, std::vector<Point3D>> getVerticesWithNormals() const override;
 	};
 
 	std::shared_ptr<Shape3DFromOBJ> loadFromFile(const std::string& path);

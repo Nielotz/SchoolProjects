@@ -8,12 +8,17 @@ namespace obj_loader
 {
 	std::vector<Point3D> Shape3DFromOBJ::getPoints() const
 	{
-		return {};
+		throw;
 	}
 
 	std::vector<Vertice3D> Shape3DFromOBJ::getVertices() const
 	{
 		return this->vertices;
+	}
+
+	std::pair<std::vector<Vertice3D>, std::vector<Point3D>> Shape3DFromOBJ::getVerticesWithNormals() const
+	{
+		return { this->vertices , this->normals };
 	}
 
 	std::shared_ptr<Shape3DFromOBJ> loadFromFile(const std::string& path)
