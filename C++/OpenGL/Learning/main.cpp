@@ -148,6 +148,7 @@ private:
 			const ShapeID shapeID;
 			const std::shared_ptr<Shape3D> shape;
 			const std::vector<Vertice3D> vertices;
+			const std::vector<Point3D> normals;
 		};
 
 		// TODO [PERFORMANCE]: Cache shapes and update in update().
@@ -156,27 +157,30 @@ private:
 		template <typename T>
 		ShapesToDraw(const std::unordered_map<ShapeID, std::shared_ptr<T>>& shapes)
 		{
+			// Ensure correct type.
 			ASSERT(typeid(T) == typeid(Shape3D)
 				|| typeid(T) == typeid(LightSourceHexahedron));
 
-			shapesToDraw.reserve(shapes.size());
-
 			// Fill shapesToDraw and count total amount of vertices.
+			this->shapesToDraw.reserve(shapes.size());
 			for (const auto& [shapeID, shape] : shapes)
 			{
-				const std::vector<Vertice3D>& shapeVertices = shape->getVertices();
+				const auto& shapeVerticesAndNormals = shape->getVerticesWithNormals();
+				const auto& vertices = shapeVerticesAndNormals.first;
+				const auto& normals = shapeVerticesAndNormals.second;
 
-				totalAmountOfVertices += shapeVertices.size();
+				totalAmountOfVertices += vertices.size();
 
-				shapesToDraw.push_back(ShapeToDraw{ shapeID, shape, shapeVertices });
+				this->shapesToDraw.push_back(ShapeToDraw{ shapeID, shape, vertices, normals });
 			}
 
-			// Allocate data and copy vertices data into one blob.
 			// TODO [PERFORMANCE]: Cache vertices.
+
+			// Allocate data and copy vertices data into one blob.
 			this->allVertices = new Vertice3D[this->totalAmountOfVertices];
 
 			size_t offset = 0;
-			for (const auto& [shapeID, shape, vertices] : this->shapesToDraw)
+			for (const auto& [shapeID, shape, vertices, normals] : this->shapesToDraw)
 			{
 				std::copy(vertices.begin(), vertices.end(), allVertices + offset);
 				offset += vertices.size();
@@ -189,8 +193,7 @@ private:
 		}
 	};
 
-
-	// Perfaps maybe dont ya think about refactoring THIS? TODO [REFACTOR]: Seperate it to a class.
+	// Perfaps maybe dont ya think about refactoring THIS REEEEEAAALY BADLY? TODO [REFACTOR]: Seperate it to a class.
 	// 1. Copy shapes data to the GPU buffer. TODO [OPTIMIZATION]: Do it on update().
 	// 2. Draw all shapes: one shape at the time.
 	void draw()
@@ -218,6 +221,7 @@ private:
 					GL_STATIC_DRAW
 				));
 
+				// Set lightning.
 				this->cubeShader.setGLlUniform1i("u_isAmbientLight", this->lightning.isAmbientLight);
 				this->cubeShader.setGLlUniform1i("u_isDiffuseLight", this->lightning.isDiffuseLight);
 				this->cubeShader.setGLlUniform1i("u_isSpecularLight", this->lightning.isSpecularLight);
@@ -240,7 +244,6 @@ private:
 					}
 				lightSourcePosition = transformationMatrix * lightSourcePosition;
 
-				// std::cout << "x: " << lightSourcePosition.x << " y: " << lightSourcePosition.y << " z: " << lightSourcePosition.z << std::endl;
 				this->cubeShader.setGLUniform3f("u_lightPosition", lightSourcePosition.x, lightSourcePosition.y, lightSourcePosition.z);
 
 				const auto& color = lightSource->getColor();
@@ -250,17 +253,18 @@ private:
 
 				// Actual drawing. 
 				GLint verticesOffset = 0;
-				for (const auto& [shapeID, shape, vertices] : shapesToDraw.shapesToDraw)
+				for (const auto& [shapeID, shape, vertices, normals] : shapesToDraw.shapesToDraw)
 				{
 					// Textures.
 					// TODO [FUNCTIONAL]: Add default texture.
 					ASSERT(this->shapesTextures.contains(shapeID));
 					const auto& shapeTextureID = this->shapesTextures.at(shapeID);
+
 					ASSERT(this->textures.contains(shapeTextureID));
 					this->cubeShader.setGLlUniform1i("u_texture", this->textures.at(shapeTextureID)->getSlot());
 
-					transformationMatrix = glm::mat4(1.);
 					// Merge transformations.
+					transformationMatrix = glm::mat4(1.);
 					if (this->shapesTransformers.contains(shapeID))
 						for (const auto& transformer : this->shapesTransformers.at(shapeID))
 							transformationMatrix *= transformer->calculateTransformationMatrix();
@@ -273,27 +277,7 @@ private:
 					constexpr int kAmountOfVerticesInTriangles = 3;
 					for (auto i = 0; i < vertices.size(); i += kAmountOfVerticesInTriangles)
 					{
-						/// Calculate normal.
-						auto coordinates1 = vertices[i].coordinates;
-						auto coordinates2 = vertices[i + 1].coordinates;
-						auto coordinates3 = vertices[i + 2].coordinates;
-
-						glm::vec3 point1(coordinates1.x, coordinates1.y, coordinates1.z);
-						glm::vec3 point2(coordinates2.x, coordinates2.y, coordinates2.z);
-						glm::vec3 point3(coordinates3.x, coordinates3.y, coordinates3.z);
-
-						point1 = transformationMatrix * glm::vec4(point1, 1.);
-						point2 = transformationMatrix * glm::vec4(point2, 1.);
-						point3 = transformationMatrix * glm::vec4(point3, 1.);
-
-						glm::vec3 vector1 = point2 - point1;
-						glm::vec3 vector2 = point3 - point1;
-
-						glm::vec3 normal = glm::normalize(glm::cross(vector1, vector2));
-
-						// std::cout << "x: " << normal.x << " y: " << normal.y << " z: " << normal.z << std::endl;
-
-						this->cubeShader.setGLUniform3f("u_normal", normal.x, normal.y, normal.z);
+						this->cubeShader.setGLUniform3f("u_normal", normals[i]);
 
 						myGLCall(glDrawArrays(GL_TRIANGLES,
 							(GLint)verticesOffset,
@@ -326,7 +310,7 @@ private:
 
 				// Actual drawing. 
 				GLint verticesOffset = 0;
-				for (const auto& [shapeID, shape, vertices] : lightSourcesToDraw.shapesToDraw)
+				for (const auto& [shapeID, shape, vertices, normals] : lightSourcesToDraw.shapesToDraw)
 				{
 					/// Merge transformations.
 					glm::mat4 transformationMatrix(1.f);
@@ -745,19 +729,18 @@ int main()
 
 	// The Cube.
 	const float hexahedronSide = 0.2f;
-	// const auto& hexahedronID = program.addShapeFromOBJFile("res/obj_files/sample_obj.txt");
-	// const auto& hexahedronID = program.addHexahedron(hexahedronSide,
-	// 	{ -hexahedronSide / 2., -hexahedronSide / 2., hexahedronSide / 2. }
-	// );
-	// program.addTransformation(hexahedronID, ContinousRotate3D, { 0, 1., 0 });
-	// program.assignTexture(textureArrowUPID, hexahedronID);
+	const auto& hexahedronID = program.addHexahedron(hexahedronSide,
+		{ -hexahedronSide / 2., -hexahedronSide / 2., hexahedronSide / 2. }
+	);
+	program.addTransformation(hexahedronID, ContinousRotate3D, { 0, 1., 0 });
+	program.assignTexture(textureArrowUPID, hexahedronID);
 
 	// Light source.
-	const float lightSourceHexahedronSide = 0.002f;
+	const float lightSourceHexahedronSide = 0.02f;
 	const float lightSourceLuminosity = 1.0f;
 	const auto& lightSourceHexahedronID = program.addLightSourceHexahedron(
 		lightSourceHexahedronSide,
-		{ -lightSourceHexahedronSide / 2. , -lightSourceHexahedronSide / 2., lightSourceHexahedronSide * 500 },
+		{ -lightSourceHexahedronSide / 2. , lightSourceHexahedronSide / 2., lightSourceHexahedronSide * 50 },
 		color::kWhiteRGBA,
 		lightSourceLuminosity);  // Luminosity.
 	program.addTransformation(lightSourceHexahedronID, ContinousSlide3D, { 0, 1.f, 0 });
@@ -765,7 +748,7 @@ int main()
 	const auto& lisekID = program.addShapeFromOBJFile("res/obj_files/lisek.obj");
 	program.assignTexture(lisekID, textureArrowUPID);
 	program.addTransformation(lisekID, Scale3D, { 0.01f, 0.01f, 0.01f });
-	program.addTransformation(lisekID, ContinousRotate3D, { 0.f, 1.f, 0.f });
+	// program.addTransformation(lisekID, ContinousRotate3D, { 0.f, 1.f, 0.f });
 
 	program.mainLoop();
 	return 0;
