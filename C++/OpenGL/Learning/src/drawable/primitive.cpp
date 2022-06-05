@@ -6,6 +6,10 @@ namespace drawable::primitive
 		:x(point.x), y(point.y), z(point.z)
 	{}
 
+	Point3D::Point3D(const glm::vec3& vec)
+		:x(vec.x), y(vec.y), z(vec.z)
+	{}
+
 	Point3D::Point3D(float x, float y, float z)
 		: x(x), y(y), z(z)
 	{}
@@ -16,7 +20,7 @@ namespace drawable::primitive
 		this->points[1] = point2;
 		this->points[2] = point3;
 	}
-	
+
 	Point2D::Point2D(const Point2D& point)
 		:x(point.x), y(point.y)
 	{}

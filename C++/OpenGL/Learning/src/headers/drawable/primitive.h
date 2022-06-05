@@ -1,6 +1,7 @@
 #pragma once
 
 #include <glad/glad.h>
+#include <glm/glm.hpp>
 
 namespace drawable::primitive
 {
@@ -20,6 +21,7 @@ namespace drawable::primitive
 		GLfloat z = 0;
 
 		Point3D(const Point3D& point);
+		Point3D(const glm::vec3& vec);
 		Point3D(float x = 0, float y = 0, float z = 0);
 	};
 
