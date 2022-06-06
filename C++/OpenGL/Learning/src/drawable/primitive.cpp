@@ -46,4 +46,11 @@ namespace drawable::primitive
 
 		return *this;
 	};
+
+	Triangle2D::Triangle2D(const Point2D& point1, const Point2D& point2, const Point2D& point3)
+	{
+		this->points[0] = point1;
+		this->points[1] = point2;
+		this->points[2] = point3;
+	}
 }

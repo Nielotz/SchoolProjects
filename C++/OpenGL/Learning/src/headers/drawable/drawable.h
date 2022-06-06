@@ -122,27 +122,25 @@ namespace drawable
 
 	namespace shape2d
 	{
-		struct Shape
+		class Circle
 		{
 		public:
 			color::RGBA getColor() const;
-			virtual std::vector<Vertice2D> getVertices() const = 0;
-			virtual Point2D getCenter() const;
+			void setColor(color::RGBA newColor);
+			std::vector<Vertice2D> getVertices() const;
+			void move(float x, float y);
 
-		protected:
-			Point2D position;
-			color::RGBA color;
-		};
-
-		class Circle : public Shape
-		{
-		public:
-			std::vector<Vertice2D> getVertices() const override;
-			Point2D getCenter() const override;
-			Circle(float radius, Point2D position = { 0.f, 0.f }, color::RGBA color = color::kRedRGBA);
+			Point2D getCenter() const;
+			void setCenter(Point2D newPos);
+			float getRadius() const;
+			Circle(float radius, int amountOfTriangles = 100, Point2D position = { 0.f, 0.f }, color::RGBA color = color::kRedRGBA);
 
 		private:
+			Point2D position;
+			color::RGBA color;
 			float radius;
+			int amountOfTriangles;
+			std::vector<Triangle2D> calculateTriangles() const;
 		};
 	}
 }

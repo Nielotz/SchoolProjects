@@ -1,7 +1,8 @@
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 
-
+#include <chrono>
+#include <random>
 #include <iostream>
 #include <numbers>
 #include <vector>
@@ -31,13 +32,18 @@ namespace control
 class TheProgram
 {
 private:
+	typedef drawable::primitive::Point2D Point2D;
+	typedef drawable::shape2d::Circle Circle;
+	
+	bool isBallActive = false;
+	Point2D ballMovingVector;
+
 	GLFWwindow* window = nullptr;
 
 	typedef uint64_t ShapeID;
-	typedef drawable::shape3d::Shape Shape3D;
 
 	// Shapes.
-	std::unordered_map<ShapeID, std::shared_ptr<Shape3D>> shapes;
+	std::unordered_map<ShapeID, std::shared_ptr<Circle>> shapes;
 
 	// Events.
 	// TODO: merge it into one with enum fron event
@@ -52,20 +58,14 @@ private:
 	// TODO [REFACTOR]: Move it to VertexArrayManager / VAO Manager.
 	// TODO [PERFORMANCE]: Swap to index buffers.
 	unsigned int VBO = -1, VAO = -1;
-	unsigned int lightVBO = -1, lightVAO = -1;
-
-	MVP modelViewProjection;
-
-	Scene scene;
-	Lightning lightning;
 
 	// In seconds.
 	float lastFrameRenderDeltaTime = 0.f;
 	// Time from glfwGetTime() received after render of a frame. In seconds.
 	float lastStartFrameRenderTime = 0.f;
 
-	typedef drawable::primitive::Point3D Point3D;
-	typedef drawable::primitive::Vertice3D Vertice3D;
+	typedef drawable::primitive::Point2D Point2D;
+	typedef drawable::primitive::Vertice2D Vertice2D;
 
 	// TODO [REFACTOR]: Move to seperate somewhere.
 	class PerformanceAnalyzer
@@ -105,46 +105,38 @@ private:
 	struct ShapesToDraw
 	{
 		size_t totalAmountOfVertices = 0;
-		Vertice3D* allVertices = nullptr;
+		Vertice2D* allVertices = nullptr;
 
 		struct ShapeToDraw
 		{
 			const ShapeID shapeID;
-			const std::shared_ptr<Shape3D> shape;
-			const std::vector<Vertice3D> vertices;
-			const std::vector<Point3D> normals;
+			const std::shared_ptr<Circle> shape;
+			const std::vector<Vertice2D> vertices;
 		};
 
 		// TODO [PERFORMANCE]: Cache shapes and update in update().
 		std::vector<ShapeToDraw> shapesToDraw;
 
-		template <typename T>
-		ShapesToDraw(const std::unordered_map<ShapeID, std::shared_ptr<T>>& shapes)
+		ShapesToDraw(const std::unordered_map<ShapeID, std::shared_ptr<Circle>>& shapes)
 		{
-			// Ensure correct type.
-			ASSERT(typeid(T) == typeid(Shape3D)
-				|| typeid(T) == typeid(LightSourceHexahedron));
-
 			// Fill shapesToDraw and count total amount of vertices.
 			this->shapesToDraw.reserve(shapes.size());
 			for (const auto& [shapeID, shape] : shapes)
 			{
-				const auto& shapeVerticesAndNormals = shape->getVerticesWithNormals();
-				const auto& vertices = shapeVerticesAndNormals.first;
-				const auto& normals = shapeVerticesAndNormals.second;
+				const auto& shapeVertices = shape->getVertices();
 
-				totalAmountOfVertices += vertices.size();
+				totalAmountOfVertices += shapeVertices.size();
 
-				this->shapesToDraw.push_back(ShapeToDraw{ shapeID, shape, vertices, normals });
+				this->shapesToDraw.push_back(ShapeToDraw{ shapeID, shape, shapeVertices });
 			}
 
 			// TODO [PERFORMANCE]: Cache vertices.
 
 			// Allocate data and copy vertices data into one blob.
-			this->allVertices = new Vertice3D[this->totalAmountOfVertices];
+			this->allVertices = new Vertice2D[this->totalAmountOfVertices];
 
 			size_t offset = 0;
-			for (const auto& [shapeID, shape, vertices, normals] : this->shapesToDraw)
+			for (const auto& [shapeID, shape, vertices] : this->shapesToDraw)
 			{
 				std::copy(vertices.begin(), vertices.end(), allVertices + offset);
 				offset += vertices.size();
@@ -167,8 +159,54 @@ private:
 		// TODO [REFACTOR]: Find better place for it.
 		// Draw polygons.
 		const auto& drawShapes = [this](
-			const std::unordered_map<ShapeID, std::shared_ptr<Shape3D>>& shapes,
-			const std::shared_ptr<LightSourceHexahedron>& lightSource) {
+			const std::unordered_map<ShapeID, std::shared_ptr<Circle>>& shapes) {
+
+				if (this->isBallActive)
+				{
+					auto ball = shapes.at(0);
+
+					const auto& ballCenter = ball->getCenter();
+					const auto& ballRadius = ball->getRadius();
+					
+					const auto& setBallRandomColor = [this, &ball]()
+					{
+						ball->setColor({ this->generateRandomFloat01(), this->generateRandomFloat01(), this->generateRandomFloat01(), 1. });
+					};
+
+					if (ballCenter.x - ballRadius < -1)
+					{
+						ball->setCenter({ -1 + ballRadius, ballCenter.y });
+						this->ballMovingVector.x *= -1;
+						setBallRandomColor();
+					}
+					else if (ballCenter.x + ballRadius > 1)
+					{
+						ball->setCenter({ 1 - ballRadius, ballCenter.y });
+						this->ballMovingVector.x *= -1;
+						setBallRandomColor();
+					}
+
+					if (ballCenter.y - ballRadius < -1)
+					{
+						ball->setCenter({ ballCenter.x, -1 + ballRadius });
+						this->ballMovingVector.y *= -1;
+						setBallRandomColor();
+					}
+					else if (ballCenter.y + ballRadius > 1)
+					{
+						ball->setCenter({ ballCenter.x, 1 - ballRadius });
+						this->ballMovingVector.y *= -1;
+						setBallRandomColor();
+					}
+						
+					logging::info("BALL_X", ballCenter.x);
+					logging::info("BALL_Y", ballCenter.y);
+
+					float multiplayer = lastFrameRenderDeltaTime;
+
+					ball->move(this->ballMovingVector.x * multiplayer, this->ballMovingVector.y * multiplayer);
+				}
+
 				/// Prepare polygons.
 				ShapesToDraw shapesToDraw(shapes);
 
@@ -177,116 +215,21 @@ private:
 				myGLCall(glBindVertexArray(this->VAO));
 				myGLCall(glBindBuffer(GL_ARRAY_BUFFER, this->VBO));
 				this->setVertexAttribPointers();
-				myGLCall(glUseProgram(this->cubeShader.getShaderProgramID()));
+				myGLCall(glUseProgram(this->circleShader.getShaderProgramID()));
 
 				myGLCall(glBufferData(GL_ARRAY_BUFFER,
-					sizeof(Vertice3D) * shapesToDraw.totalAmountOfVertices,
+					sizeof(Vertice2D) * shapesToDraw.totalAmountOfVertices,
 					static_cast<const void*>(shapesToDraw.allVertices),
 					GL_STATIC_DRAW
 				));
 
-				// Set lightning.
-				this->cubeShader.setGLlUniform1i("u_isAmbientLight", this->lightning.isAmbientLight);
-				this->cubeShader.setGLlUniform1i("u_isDiffuseLight", this->lightning.isDiffuseLight);
-				this->cubeShader.setGLlUniform1i("u_isSpecularLight", this->lightning.isSpecularLight);
-
-				this->cubeShader.setGLUniform3f("u_viewPos", this->modelViewProjection.view.getPosition());
-
-				this->cubeShader.setGLUniform1f("u_ambientLightStrength", this->scene.ambientLightStrength);
-				this->cubeShader.setGLUniform3f("u_ambientLightColor", this->scene.ambientLightColor);
-
-				const auto& lightSourceCenter = lightSource->getCenter();
-				glm::vec4 lightSourcePosition(lightSourceCenter.x, lightSourceCenter.y, lightSourceCenter.z, 1.);
-
-				glm::mat4 transformationMatrix(1.f);
-				for (const auto& [shapeID, transformers] : this->shapesTransformers)
-					if (this->lightSources.contains(shapeID))
-					{
-						for (const auto& transformer : transformers)
-							transformationMatrix *= transformer->calculateTransformationMatrix();
-						break;
-					}
-				lightSourcePosition = transformationMatrix * lightSourcePosition;
-
-				this->cubeShader.setGLUniform3f("u_lightPosition", lightSourcePosition.x, lightSourcePosition.y, lightSourcePosition.z);
-
-				const auto& color = lightSource->getColor();
-				this->cubeShader.setGLUniform3f("u_lightColor", color.red, color.green, color.blue);
-
-				this->cubeShader.setGLlUniformMat4f("u_MVP", this->modelViewProjection.getMVP());
-
 				// Actual drawing. 
 				GLint verticesOffset = 0;
-				for (const auto& [shapeID, shape, vertices, normals] : shapesToDraw.shapesToDraw)
+				for (const auto& [shapeID, shape, vertices] : shapesToDraw.shapesToDraw)
 				{
-					// Textures.
-					// TODO [FUNCTIONAL]: Add default texture.
-					ASSERT(this->shapesTextures.contains(shapeID));
-					const auto& shapeTextureID = this->shapesTextures.at(shapeID);
-
-					ASSERT(this->textures.contains(shapeTextureID));
-					this->cubeShader.setGLlUniform1i("u_texture", this->textures.at(shapeTextureID)->getSlot());
-
-					// Merge transformations.
-					transformationMatrix = glm::mat4(1.);
-					if (this->shapesTransformers.contains(shapeID))
-						for (const auto& transformer : this->shapesTransformers.at(shapeID))
-							transformationMatrix *= transformer->calculateTransformationMatrix();
-
-					this->cubeShader.setGLlUniformMat4f("u_transformation", transformationMatrix);
-
-					this->cubeShader.setGLUniform1f("u_lightSpecularStrength", shape->getSpecularStrength());
+					this->circleShader.setGLUniform4f("u_color", shape->getColor());
 
 					// Draw triangle by triangle.
-					constexpr int kAmountOfVerticesInTriangles = 3;
-					for (auto i = 0; i < vertices.size(); i += kAmountOfVerticesInTriangles)
-					{
-						this->cubeShader.setGLUniform3f("u_normal", normals[i]);
-
-						myGLCall(glDrawArrays(GL_TRIANGLES,
-							(GLint)verticesOffset,
-							static_cast<GLsizei>(kAmountOfVerticesInTriangles)
-						));
-						verticesOffset += kAmountOfVerticesInTriangles;
-					}
-				}
-		};
-
-		const auto& drawLightning = [this](
-			const std::unordered_map<ShapeID, std::shared_ptr<LightSourceHexahedron>>& lightShapes) {
-				// Prepare light.
-				ShapesToDraw lightSourcesToDraw(this->lightSources);
-
-				/// Prepare data.
-				// _TODO [PERFORMANCE]: Move to update.
-				myGLCall(glBindVertexArray(this->lightVAO));
-				myGLCall(glBindBuffer(GL_ARRAY_BUFFER, this->lightVBO));
-				this->setVertexAttribPointersLightning();
-				myGLCall(glUseProgram(this->lightShader.getShaderProgramID()));
-
-				myGLCall(glBufferData(GL_ARRAY_BUFFER,
-					sizeof(Vertice3D) * lightSourcesToDraw.totalAmountOfVertices,
-					static_cast<const void*>(lightSourcesToDraw.allVertices),
-					GL_STATIC_DRAW
-				));
-
-				this->lightShader.setGLlUniformMat4f("u_MVP", this->modelViewProjection.getMVP());
-
-				// Actual drawing. 
-				GLint verticesOffset = 0;
-				for (const auto& [shapeID, shape, vertices, normals] : lightSourcesToDraw.shapesToDraw)
-				{
-					/// Merge transformations.
-					glm::mat4 transformationMatrix(1.f);
-
-					if (this->shapesTransformers.contains(shapeID))
-						for (const auto& transformer : this->shapesTransformers.at(shapeID))
-							transformationMatrix *= transformer->calculateTransformationMatrix();
-
-					this->lightShader.setGLlUniformMat4f("u_transformation", transformationMatrix);
-					this->lightShader.setGLUniform4f("u_color", shape->getColor());
-
-					/// Draw triangle by triangle.
 					constexpr int kAmountOfVerticesInTriangles = 3;
 					for (auto i = 0; i < vertices.size(); i += kAmountOfVerticesInTriangles)
 					{
@@ -302,13 +245,7 @@ private:
 		/// Start drawing.
 		this->clearScreen();
 
-		for (const auto& [key, lightSource] : this->lightSources)
-		{
-			drawShapes(this->shapes, lightSource);
-			break;
-		}
-
-		drawLightning(this->lightSources);
+		drawShapes(this->shapes);
 
 		myGLCall(glfwSwapBuffers(window));
 
@@ -329,43 +266,6 @@ private:
 
 	void setEvents()
 	{
-		// Keyboard.
-		const auto& getMoveDistance = [this]() -> float {
-			return this->lastFrameRenderDeltaTime * config::control::kMoveSpeed;
-		};
-
-		this->keyboardOnPressRepeatEvents['Q'] = [this, getMoveDistance] { this->modelViewProjection.view.moveUp(getMoveDistance()); };
-		this->keyboardOnPressRepeatEvents['E'] = [this, getMoveDistance] { this->modelViewProjection.view.moveDown(getMoveDistance()); };
-		this->keyboardOnPressRepeatEvents['W'] = [this, getMoveDistance] { this->modelViewProjection.view.moveFront(getMoveDistance()); };
-		this->keyboardOnPressRepeatEvents['A'] = [this, getMoveDistance] { this->modelViewProjection.view.moveLeft(getMoveDistance()); };
-		this->keyboardOnPressRepeatEvents['S'] = [this, getMoveDistance] { this->modelViewProjection.view.moveBack(getMoveDistance()); };
-		this->keyboardOnPressRepeatEvents['D'] = [this, getMoveDistance] { this->modelViewProjection.view.moveRight(getMoveDistance()); };
-
-		// Mouse.
-		glfwSetInputMode(this->window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);  // Hide coursor.
-
-		const auto& moveLook = [this]() {
-			double xPos, yPos;
-			glfwGetCursorPos(this->window, &xPos, &yPos);
-
-			xPos -= config::kScreenCenterHorizontal;
-			yPos -= config::kScreenCenterVertical;
-
-			// TODO [OPTIMIZATION]
-			// Skip to high movement, like entering the window.
-			if (abs(xPos) > config::kScreenWidth / 3. || abs(yPos) > config::kScreenHeight / 3.)
-				return;
-
-			const float& yaw = float(xPos) * config::control::kMouseSensitivity;
-			const float& pitch = -float(yPos) * config::control::kMouseSensitivity;
-
-			this->modelViewProjection.view.moveLook(yaw, pitch);
-		};
-
-		this->mouseOnMoveEvents.reserve(10);
-
-		this->mouseOnMoveEvents.push_back({ "UpdateMoveLook", [this, moveLook] { moveLook(); } });
-		this->mouseOnMoveEvents.push_back({ "SetCursorCenter", [this] { glfwSetCursorPos(this->window, config::kScreenCenterHorizontal, config::kScreenCenterVertical); } });
 	}
 
 	void setCallbacks()
@@ -395,86 +295,21 @@ private:
 	// TODO [REFACTOR]: Move vertex stuff somewhere.
 	void setVertexAttribPointers()
 	{
-		// TODO [REFACTOR]: Add into seperate class to simplify usage. 
-		//		[PERFORMANCE]: Use IndexBuffer.
-
-		size_t idx = 0;
-
 		// Coordinates.
 		//const GLint kCoordsIdx = idx++;
 		const GLint kCoordsIdx = 0;
-		constexpr GLint kAmountOfCoords = 3;
+		constexpr GLint kAmountOfCoords = 2;
 		myGLCall(glEnableVertexAttribArray(kCoordsIdx));
 		myGLCall(glVertexAttribPointer(
 			kCoordsIdx,                                   // index
 			kAmountOfCoords,	                          // size
 			GL_FLOAT,			                          // type
 			GL_FALSE,			                          // normalized
-			sizeof(Vertice3D),		                      // stride
-			(void*)(offsetof(Vertice3D, coordinates))));  // offset
-
-		// Texture coordinates.
-		//const GLint kTextureCoordsIdx = idx++;
-		const GLint kTextureCoordsIdx = 1;
-		constexpr GLint kAmountOfTextureCoords = 2;
-		myGLCall(glEnableVertexAttribArray(kTextureCoordsIdx));
-		myGLCall(glVertexAttribPointer(
-			kTextureCoordsIdx,
-			kAmountOfTextureCoords,
-			GL_FLOAT,
-			GL_FALSE,
-			sizeof(Vertice3D),
-			(void*)(offsetof(Vertice3D, textureCoordinates))));
-	}
-
-	void setVertexAttribPointersLightning()
-	{
-		// TODO [REFACTOR]: Add into seperate class to simplify usage. 
-		//		[PERFORMANCE]: Use IndexBuffer.
-
-		size_t idx = 0;
-
-		// Coordinates.
-		//const GLint kCoordsIdx = idx++;
-		const GLint kCoordsIdx = 0;
-		constexpr GLint kAmountOfCoords = 3;
-		myGLCall(glEnableVertexAttribArray(kCoordsIdx));
-		myGLCall(glVertexAttribPointer(
-			kCoordsIdx,                                   // index
-			kAmountOfCoords,	                          // size
-			GL_FLOAT,			                          // type
-			GL_FALSE,			                          // normalized
-			sizeof(Vertice3D),		                      // stride
-			(void*)(offsetof(Vertice3D, coordinates))));  // offset
-
-		// Texture coordinates.
-		//const GLint kTextureCoordsIdx = idx++;
-		const GLint kTextureCoordsIdx = 1;
-		constexpr GLint kAmountOfTextureCoords = 2;
-		myGLCall(glEnableVertexAttribArray(kTextureCoordsIdx));
-		myGLCall(glVertexAttribPointer(
-			kTextureCoordsIdx,
-			kAmountOfTextureCoords,
-			GL_FLOAT,
-			GL_FALSE,
-			sizeof(Vertice3D),
-			(void*)(offsetof(Vertice3D, textureCoordinates))));
+			sizeof(Vertice2D),		                      // stride
+			(void*)(offsetof(Vertice2D, coordinates))));  // offset
 	}
 
 public:
-	void toggleAmbientLightning()
-	{
-		this->lightning.isAmbientLight = !this->lightning.isAmbientLight;
-	}
-	void toggleDiffuseLightning()
-	{
-		this->lightning.isDiffuseLight = !this->lightning.isDiffuseLight;
-	}
-	void toggleSpecularLightning()
-	{
-		this->lightning.isSpecularLight = !this->lightning.isSpecularLight;
-	}
-
 	void init()
 	{
 		glfwInit();
@@ -495,50 +330,56 @@ public:
 		myGLCall(glEnable(GL_CULL_FACE));
 		myGLCall(glCullFace(GL_BACK));
 
-		this->cubeShader.createProgramFromFile("src/mygl/shader/7.1.lighting.cubes.shader");
-		this->lightShader.createProgramFromFile("src/mygl/shader/7.1.lighting.light_sources.shader");
+		this->circleShader.createProgramFromFile("src/mygl/shader/9.moving_circle.shader");
 
 		myGLCall(glGenVertexArrays(1, &VAO));
 		myGLCall(glGenBuffers(1, &VBO));
 
-		myGLCall(glGenVertexArrays(1, &lightVAO));
-		myGLCall(glGenBuffers(1, &lightVBO));
-
 		this->setCallbacks();
 		this->setEvents();
 
-		myGLCall(glfwSwapInterval(2));
+		myGLCall(glfwSwapInterval(0));
 
 		glfwSetTime(0.0);
 	}
 
-	ShapeID addHexahedron(float sideLength, Point3D position = { 0.f, 0.f, 0.f }, color::RGBA color = color::kRedRGBA)
+	float generateRandomFloat01() {
+		static bool is_seeded = false;
+		static std::mt19937 generator;
+
+		// Seed once
+		if (!is_seeded) {
+			std::random_device rd;
+			generator.seed(rd());
+			is_seeded = true;
+		}
+
+		constexpr float max_range = 255;
+		// Use mersenne twister engine to pick a random number
+		// within the given range
+		std::uniform_int_distribution<int> distribution(0, int(max_range));
+		return distribution(generator) / max_range;
+	}
+
+	ShapeID addCircle(float radius, int amountOfTriangles = 100, Point2D position = { 0.f, 0.f }, color::RGBA color = color::kRedRGBA)
 	{
 		// TODO [PERFORAMNCE]: Swap to random id.
 		// Find first avaiable id.
 		ShapeID shapeID = 0;
-		while (this->shapes.contains(shapeID) || this->lightSources.contains(shapeID))
+		while (this->shapes.contains(shapeID))
 			shapeID++;
 
-		this->shapes[shapeID] = std::make_unique<drawable::shape3d::Hexahedron>(sideLength, position, color);
+		this->shapes[shapeID] = std::make_unique<Circle>(radius, amountOfTriangles, position, color);
 
 		return shapeID;
 	}
 
-	LightSourceID addLightSourceHexahedron(
-		float sideLength, Point3D position = { 0.f, 0.f, 0.f }, color::RGBA color = color::kRedRGBA,
-		float luminosity = 1.)
+	void activateBall()
 	{
-		// TODO [PERFORAMNCE]: Swap to random id.
-		// Find first avaiable id.
-		LightSourceID lightSourceID = 0;
-		while (this->shapes.contains(lightSourceID) || this->lightSources.contains(lightSourceID))
-			lightSourceID++;
-
-		this->lightSources[lightSourceID] =
-			std::make_unique<LightSourceHexahedron>(sideLength, position, color, luminosity);
-
-		return lightSourceID;
+		// if (this->isBallActive)
+		// 	return;
+		this->isBallActive = true;
+		this->ballMovingVector = { generateRandomFloat01(), generateRandomFloat01()};
 	}
 
 	void mainLoop()
@@ -558,92 +399,11 @@ public:
 		}
 	}
 
-	void addTransformation(const ShapeID& shapeID,
-		const transformation3d::TransformatingType& tansformerType,
-		const Vector transformationVector)
-	{
-		using namespace transformation3d;
-
-		switch (tansformerType)
-		{
-		case TransformatingType::Slide:
-			shapesTransformers[shapeID].push_back(std::make_shared<Slider>(Slider(transformationVector)));
-			break;
-		case TransformatingType::ContinousSlide:
-			shapesTransformers[shapeID].push_back(std::make_shared<continous::Slider>(continous::Slider(transformationVector)));
-			break;
-		case TransformatingType::ContinousScale:
-			shapesTransformers[shapeID].push_back(std::make_shared<continous::Scaler>(continous::Scaler(transformationVector)));
-			break;
-		case TransformatingType::ContinousRotate:
-			shapesTransformers[shapeID].push_back(std::make_shared<continous::Rotator>(continous::Rotator(transformationVector)));
-			break;
-		case TransformatingType::Scale:
-			shapesTransformers[shapeID].push_back(std::make_shared<Scaler>(Scaler(transformationVector)));
-			break;
-		default:
-			throw;
-		}
-	}
-
-	ShapeID addShapeFromOBJFile(const std::string& path, const float& scale = 1)
-	{
-		// TODO [PERFORAMNCE]: Swap to random id.
-		// Find first avaiable id.
-		ShapeID shapeID = 0;
-		while (this->shapes.contains(shapeID) || this->lightSources.contains(shapeID))
-			shapeID++;
-
-		this->shapes[shapeID] = obj_loader::loadFromFile(path);
-
-		return shapeID;
-	}
-
-	// TODO [PERFORAMNCE]: Cache.
-	// TODO [REFACTOR]: Rewrite it better.
-	void assignTexture(const ShapeID& shapeID, const TextureID& textureID)
-	{
-		this->shapesTextures[shapeID] = textureID;
-
-		// TODO [PERFORAMNCE]: .
-		// Find first avaiable slotIdx.
-		int slotIdx = 0;
-		while (this->usedTextureSlots[slotIdx])
-		{
-			ASSERT(slotIdx < 32);
-			slotIdx++;
-		}
-
-		this->textures[textureID]->bind(slotIdx);
-		this->usedTextureSlots[slotIdx] = true;
-	}
-
-	TextureID loadTexture(const std::string& path)
-	{
-		// TODO [PERFORMANCE] [REFACTOR]
-		// Find first avaiable textureID.
-		TextureID textureID = 0;
-		while (this->textures.contains(textureID))
-			textureID++;
-
-		this->textures[textureID] = std::make_shared<Texture2D>(path);
-
-		return textureID;
-	}
-
-	void setScene(color::RGB ambientLightColor, float ambientLightStrength)
-	{
-		this->scene.ambientLightColor = ambientLightColor;
-		this->scene.ambientLightStrength = ambientLightStrength;
-	}
-
 	~TheProgram()
 	{
 		myGLCall(glDeleteVertexArrays(1, &VAO));
-		myGLCall(glDeleteVertexArrays(1, &lightVAO));
 		myGLCall(glDeleteBuffers(1, &VBO));
-		myGLCall(glDeleteProgram(this->cubeShader.getShaderProgramID()));
-		myGLCall(glDeleteProgram(this->lightShader.getShaderProgramID()));
+		myGLCall(glDeleteProgram(this->circleShader.getShaderProgramID()));
 
 		glfwTerminate();
 	}
@@ -665,12 +425,11 @@ namespace control
 
 		if (action == GLFW_RELEASE)
 		{
-			if (key == GLFW_KEY_I)
-				program->toggleAmbientLightning();
-			else if (key == GLFW_KEY_O)
-				program->toggleDiffuseLightning();
-			else if (key == GLFW_KEY_P)
-				program->toggleSpecularLightning();
+			if (key == GLFW_KEY_SPACE)
+			{
+				logging::info("BALL", "Releasing");
+				program->activateBall();
+			}
 		}
 	}
 };
@@ -681,10 +440,8 @@ int main()
 	program.init();
 
 	// The Cube.
-	const float hexahedronSide = 0.2f;
-	const auto& hexahedronID = program.addHexahedron(hexahedronSide,
-		{ -hexahedronSide / 2., -hexahedronSide / 2., hexahedronSide / 2. }
-	);
+	const float radius = 0.1f;
+	const auto& circleID = program.addCircle(radius, 100);
 	
 	program.mainLoop();
 	return 0;

@@ -7,8 +7,6 @@ namespace drawable
 {
 	namespace shape3d
 	{
-		using primitive::Point3D;
-
 		std::vector<Point3D> Hexahedron::getPoints() const
 		{
 			// Hexahedron vertices.
@@ -190,5 +188,93 @@ namespace drawable
 			: shape3d::Hexahedron(sideLength, position, color),
 			LightSource3D(luminosity)
 		{};
+	}
+
+	namespace shape2d
+	{
+		color::RGBA Circle::getColor() const
+		{
+			return this->color;
+		}
+
+		void Circle::setColor(color::RGBA newColor)
+		{
+			this->color = newColor;
+		}
+
+		void Circle::setCenter(Point2D newPos)
+		{
+			this->position = newPos;
+		}
+
+		// TO BE DONE
+		std::vector<Vertice2D> Circle::getVertices() const
+		{
+			const auto& triangles = this->calculateTriangles();
+
+			std::vector<Vertice2D> vertices;
+			vertices.reserve(3 * this->amountOfTriangles);  // 3 vertices per triangle
+
+			for (const auto& triangle : triangles)
+			{
+				// Upper triangle.
+				vertices.emplace_back(triangle.points[0]);
+				vertices.emplace_back(triangle.points[1]);
+				vertices.emplace_back(triangle.points[2]);
+			}
+
+			return vertices;
+		}
+
+		void Circle::move(float x, float y)
+		{
+			this->position.x += x;
+			this->position.y += y;
+		}
+
+		std::vector<Triangle2D> Circle::calculateTriangles() const
+		{
+			const Point2D& center = this->getCenter();
+
+			std::vector<Triangle2D> triangles;
+			triangles.reserve(this->amountOfTriangles);
+
+			Point2D previousEdgePoint = { center.x + radius , center.y };
+			for (int trianglesIdx = 0; trianglesIdx < this->amountOfTriangles; trianglesIdx++)
+			{
+				GLfloat currentAngle = GLfloat(2.0 * std::numbers::pi * (trianglesIdx + 1) / this->amountOfTriangles);
+
+				triangles.emplace_back(
+					Triangle2D{
+						center,
+						previousEdgePoint,
+						{
+							radius * cosf(currentAngle) + center.x, // x
+							radius * sinf(currentAngle) + center.y  // y
+						}
+					}
+				);
+				previousEdgePoint = triangles[trianglesIdx].points[2];
+			}
+			return triangles;
+		}
+
+		Point2D Circle::getCenter() const
+		{
+			return Point2D(this->position.x, this->position.y);
+		}
+
+		float Circle::getRadius() const
+		{
+			return this->radius;
+		}
+		
+		Circle::Circle(float radius, int amountOfTriangles, Point2D position, color::RGBA color)
+		{
+			this->radius = radius;
+			this->amountOfTriangles = amountOfTriangles;
+			this->color = color;
+			this->position = position;
+		}
 	}
 }
