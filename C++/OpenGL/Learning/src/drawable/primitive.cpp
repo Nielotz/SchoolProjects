@@ -28,4 +28,22 @@ namespace drawable::primitive
 	Point2D::Point2D(float x, float y)
 		: x(x), y(y)
 	{}
+
+	Point2D Point2D::operator-(const Point2D& other) const
+	{
+		return { this->x - other.x, this->y - other.y };
+	}
+
+	Point2D Point2D::operator+(const Point2D& other) const
+	{
+		return { this->x + other.x, this->y + other.y };
+	}
+
+	Point2D& Point2D::operator+=(const Point2D& other)
+	{
+		this->x += other.x;
+		this->y += other.y;
+
+		return *this;
+	};
 }

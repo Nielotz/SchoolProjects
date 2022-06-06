@@ -31,47 +31,13 @@ namespace control
 class TheProgram
 {
 private:
-	struct Scene
-	{
-		color::RGB ambientLightColor;
-		float ambientLightStrength;
-	};
-
-	struct Lightning
-	{
-		bool isAmbientLight = 1;
-		bool isDiffuseLight = 1;
-		bool isSpecularLight = 1;
-	};
-
 	GLFWwindow* window = nullptr;
 
 	typedef uint64_t ShapeID;
 	typedef drawable::shape3d::Shape Shape3D;
 
-	// TODO [PERFORMANCE]: Group shapes stuff (transformations, textures, etc.) in one place.
-
 	// Shapes.
 	std::unordered_map<ShapeID, std::shared_ptr<Shape3D>> shapes;
-
-	// Transformations.
-	typedef std::vector<std::shared_ptr<transformation3d::Transformer>> VectorOfTransformers;
-	std::unordered_map<ShapeID, VectorOfTransformers> shapesTransformers;
-
-	// Textures.
-	// TODO [REFACTOR]: Add manager or simplify structure.
-	typedef MyGL::Texture2D Texture2D;
-	typedef uint64_t TextureID;
-	std::unordered_map<TextureID, std::shared_ptr<Texture2D>> textures;
-	std::unordered_map<ShapeID, TextureID> shapesTextures;
-	// Stores information whether slot is in use.
-	bool usedTextureSlots[32]{ false };
-
-	// TODO [REFACTOR]: Generialize.
-	// Light sources.
-	typedef uint64_t LightSourceID;
-	typedef drawable::lighting3d::LightSourceHexahedron LightSourceHexahedron;
-	std::unordered_map<LightSourceID, std::shared_ptr<LightSourceHexahedron>> lightSources;
 
 	// Events.
 	// TODO: merge it into one with enum fron event
@@ -80,10 +46,8 @@ private:
 	std::unordered_map<KeyID, std::function<void()>> keyboardOnPressEvents;
 	std::vector<std::pair<std::string, std::function<void()>>> mouseOnMoveEvents;
 
-	// TODO [REFACTOR]: Find a home for shaders.
 	// Shaders.
-	MyGLShader cubeShader;
-	MyGLShader lightShader;
+	MyGLShader circleShader;
 
 	// TODO [REFACTOR]: Move it to VertexArrayManager / VAO Manager.
 	// TODO [PERFORMANCE]: Swap to index buffers.
@@ -716,40 +680,12 @@ int main()
 	TheProgram program;
 	program.init();
 
-	// Transformation type.
-	const auto& ContinousRotate3D = transformation3d::TransformatingType::ContinousRotate;
-	const auto& ContinousSlide3D = transformation3d::TransformatingType::ContinousSlide;
-	const auto& Scale3D = transformation3d::TransformatingType::Scale;
-
-	// Textures.
-	const auto& textureArrowUPID = program.loadTexture("res/textures/arrow_up.jpg");
-
-	// Scene.
-	program.setScene({ 1.f, 1.f, 1.f }, 0.1f);
-
 	// The Cube.
 	const float hexahedronSide = 0.2f;
 	const auto& hexahedronID = program.addHexahedron(hexahedronSide,
 		{ -hexahedronSide / 2., -hexahedronSide / 2., hexahedronSide / 2. }
 	);
-	program.addTransformation(hexahedronID, ContinousRotate3D, { 0, 1., 0 });
-	program.assignTexture(textureArrowUPID, hexahedronID);
-
-	// Light source.
-	const float lightSourceHexahedronSide = 0.02f;
-	const float lightSourceLuminosity = 1.0f;
-	const auto& lightSourceHexahedronID = program.addLightSourceHexahedron(
-		lightSourceHexahedronSide,
-		{ -lightSourceHexahedronSide / 2. , lightSourceHexahedronSide / 2., lightSourceHexahedronSide * 50 },
-		color::kWhiteRGBA,
-		lightSourceLuminosity);  // Luminosity.
-	program.addTransformation(lightSourceHexahedronID, ContinousSlide3D, { 0, 1.f, 0 });
-
-	const auto& lisekID = program.addShapeFromOBJFile("res/obj_files/lisek.obj");
-	program.assignTexture(lisekID, textureArrowUPID);
-	program.addTransformation(lisekID, Scale3D, { 0.01f, 0.01f, 0.01f });
-	// program.addTransformation(lisekID, ContinousRotate3D, { 0.f, 1.f, 0.f });
-
+	
 	program.mainLoop();
 	return 0;
 }

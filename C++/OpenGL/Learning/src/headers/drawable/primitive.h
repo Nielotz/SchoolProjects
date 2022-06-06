@@ -12,6 +12,10 @@ namespace drawable::primitive
 
 		Point2D(const Point2D& point);
 		Point2D(float x = 0, float y = 0);
+		Point2D operator-(const Point2D& other) const;
+		Point2D operator+(const Point2D& other) const;
+		Point2D& operator+=(const Point2D& other);
+
 	};
 
 	struct Point3D
