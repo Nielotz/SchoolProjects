@@ -15,7 +15,6 @@ namespace drawable::primitive
 		Point2D operator-(const Point2D& other) const;
 		Point2D operator+(const Point2D& other) const;
 		Point2D& operator+=(const Point2D& other);
-
 	};
 
 	struct Point3D
@@ -35,10 +34,22 @@ namespace drawable::primitive
 		Point2D textureCoordinates;  // From where sample (x, y).
 	};
 
+	struct Vertice2D
+	{
+		Point2D coordinates;  // Where vertice is (x, y).
+	};
+
 	struct Triangle3D
 	{
 		Point3D points[3];
 
 		Triangle3D(const Point3D& point1, const Point3D& point2, const Point3D& point3);
+	};
+
+	struct Triangle2D
+	{
+		Point2D points[3];
+
+		Triangle2D(const Point2D& point1, const Point2D& point2, const Point2D& point3);
 	};
 }
