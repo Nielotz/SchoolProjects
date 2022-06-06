@@ -115,4 +115,34 @@ namespace drawable
 				float luminosity = 1.);
 		};
 	}
+
+	using drawable::primitive::Point2D;
+	using drawable::primitive::Triangle2D;
+	using drawable::primitive::Vertice2D;
+
+	namespace shape2d
+	{
+		struct Shape
+		{
+		public:
+			color::RGBA getColor() const;
+			virtual std::vector<Vertice2D> getVertices() const = 0;
+			virtual Point2D getCenter() const;
+
+		protected:
+			Point2D position;
+			color::RGBA color;
+		};
+
+		class Circle : public Shape
+		{
+		public:
+			std::vector<Vertice2D> getVertices() const override;
+			Point2D getCenter() const override;
+			Circle(float radius, Point2D position = { 0.f, 0.f }, color::RGBA color = color::kRedRGBA);
+
+		private:
+			float radius;
+		};
+	}
 }
