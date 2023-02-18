@@ -6,3 +6,11 @@ Collection of school projects.
   *  [GCDRecursivelyWithStackPointerPrint](ASM/GCDRecursivelyWithStackPointerPrint) 
 * [C](C)
   *  [CalculationOptimizations](C/CalculationOptimizations) 
+  *  MPI
+  *  OpenMP
+  *  Pthreads
+* [Java](Java)
+  *  [StorageUtility](Java/StorageUtility) (Spring, JPA)
+  *  [LightWakeUpAlarm](Java/LightWakeUpAlarm) (Android)
+* [Python](Python)
+  *  [FEMSimulation](Python/FEMSimulation)

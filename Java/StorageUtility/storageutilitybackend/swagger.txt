@@ -1,0 +1,111 @@
+https://editor-next.swagger.io
+
+openapi: 3.0.3
+info:
+  title: StorageUtility
+  version: 0.1.0
+servers:
+  - url: /v3/api-docs
+
+tags:
+  - name: items
+    description: Some thing, like coffee, milk, etc.
+  # - name: storage
+  #   description: Storage - some place.
+  - name: itemStatuses
+    description: Amount of items in given place at given time.
+paths:
+  /items:
+    post:
+      tags:
+        - items
+      summary: Add a new item
+      description: Add a new item into the db
+      requestBody:
+        description: Create a new item in the db
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Items'
+        required: true
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Items'
+        # Already exists.
+    get:
+      tags:
+        - items
+      summary: Get items
+      description: Get item into the db
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Items'
+        # Already exists.
+  /item/{itemId}/statuses:
+    post:
+      tags:
+        - items
+      summary: Add a new item status
+      description: Add a new item status into the db
+      requestBody:
+        description: Create a new item status in the db
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Statuses'
+        required: true
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Statuses'
+    get:
+      tags:
+        - items
+      summary: Get item status
+      description: Get item status
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Statuses'
+
+components:
+  schemas:
+    Items:
+      required:
+        - name
+      type: object
+      properties:
+        name:
+          type: string
+          example: carton of a milk
+    Statuses:
+      optional:
+        - statusDate
+      required:
+        - itemId
+        # - storageId
+        - amount
+      type: object
+      properties:
+        itemId:
+          type: integer
+          example: 0
+        statusDate:
+          type: string
+          example: "2022-12-26"
+        amount:
+          type: number
