@@ -1,0 +1,19 @@
+function [sol_1, sol_2] = inverse_2DoF(Pee, L1, L2)
+    pos2 = acos(...
+                (sum(power(Pee, 2)) - sum(power([L1 L2], 2))) ...
+                / prod([2 L1 L2])...
+           );
+
+    pos22 = [pos2; 
+             -pos2];
+
+    pos1 = atan(Pee(2) / Pee(1)) ...
+           - atan(L2 * sin(pos22) ...
+                  ./ ( L1 + L2 * cos(pos22) ) ...
+            );
+    
+    sol_1 = [pos1(1);
+             pos2];
+    sol_2 = [pos1(2);
+             pos22(2)];
+end

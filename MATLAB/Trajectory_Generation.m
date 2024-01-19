@@ -1,0 +1,6 @@
+function [q,dq,ddq] = Trajectory_Generation(...
+    q_p,dq_p,q_k,dq_k,Tk,Ta,Tb,dt,V)
+    
+    [q, dq, ddq] = my_trajectory_generation(...
+        q_p,dq_p,q_k,dq_k,Tk,Ta,Tb,dt,V);
+end
