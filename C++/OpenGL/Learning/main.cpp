@@ -10,6 +10,7 @@
 #include <unordered_map>
 #include <list>
 #include <functional>
+#include <memory>
 
 #include "src/headers/mygl/debug/debug.h"
 #include "src/headers/mygl/texture.h"

@@ -9,3 +9,8 @@ cmake-build-debug
 x64
 C++/OpenGL/Learning/src/headers/glm/
 Java/AgentTechnics/Lab1/Lab1.iml
+/C++/OpenGL/Learning/build-msvc
+/C++/OpenGL/Learning/glad
+/C++/OpenGL/Learning/glew
+/C++/OpenGL/Learning/glfw
+/C++/OpenGL/Learning/glm
