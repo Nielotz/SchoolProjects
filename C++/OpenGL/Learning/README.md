@@ -2,7 +2,7 @@
 
 A C++ OpenGL project for learning 3D graphics programming with GLFW and GLAD.
 
-<video controls src="res/demo.mp4" title="Title"></video>
+https://github.com/user-attachments/assets/ba9b9364-e8f8-459d-9f49-eb8c7890849f
 
 ## Features
 
