@@ -1,5 +1,8 @@
 # SchoolProjects
 Collection of school projects.
+* [C++](C++)
+  *  [OpenGL](C++/OpenGL) 
+  *  [AlgorithmsAndDataStructures](C++/AlgorithmsAndDataStructures) 
 * [ASM](ASM)
   *  [CalculatePIUsingLeibniz](ASM/CalculatePIUsingLeibniz) 
   *  [GCDIteratively](ASM/GCDIteratively) 

@@ -1,0 +1,10 @@
+C:/Users/Nielotz/Documents/GitHub/SchoolProjects/C++/OpenGL/Learning/build-msvc/CMakeFiles/OpenGLLearning.dir
+C:/Users/Nielotz/Documents/GitHub/SchoolProjects/C++/OpenGL/Learning/build-msvc/CMakeFiles/INSTALL.dir
+C:/Users/Nielotz/Documents/GitHub/SchoolProjects/C++/OpenGL/Learning/build-msvc/CMakeFiles/ALL_BUILD.dir
+C:/Users/Nielotz/Documents/GitHub/SchoolProjects/C++/OpenGL/Learning/build-msvc/CMakeFiles/ZERO_CHECK.dir
+C:/Users/Nielotz/Documents/GitHub/SchoolProjects/C++/OpenGL/Learning/build-msvc/glfw/CMakeFiles/uninstall.dir
+C:/Users/Nielotz/Documents/GitHub/SchoolProjects/C++/OpenGL/Learning/build-msvc/glfw/CMakeFiles/INSTALL.dir
+C:/Users/Nielotz/Documents/GitHub/SchoolProjects/C++/OpenGL/Learning/build-msvc/glfw/CMakeFiles/ALL_BUILD.dir
+C:/Users/Nielotz/Documents/GitHub/SchoolProjects/C++/OpenGL/Learning/build-msvc/glfw/src/CMakeFiles/glfw.dir
+C:/Users/Nielotz/Documents/GitHub/SchoolProjects/C++/OpenGL/Learning/build-msvc/glfw/src/CMakeFiles/update_mappings.dir
+C:/Users/Nielotz/Documents/GitHub/SchoolProjects/C++/OpenGL/Learning/build-msvc/glfw/src/CMakeFiles/INSTALL.dir
